@@ -29,6 +29,12 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* PALETTE'S A11Y FIX: Visible Focus Indicators */
+        *:focus-visible {
+            outline: 3px solid #000;
+            outline-offset: 2px;
+        }
+
         body {
             margin: 0;
             padding: 12px;
@@ -244,6 +250,13 @@
         </div>
     </div>
 
+    <div class="neo-box">
+        <div class="list-header" style="background:#fff; border-bottom:2px solid #000;">VS. VISUALIZER</div>
+        <div class="chart-wrapper">
+            <canvas id="ratingChart"></canvas>
+        </div>
+    </div>
+
     <div class="neo-box leaderboard">
         <div class="list-header">
             <span>RANK / PLAYER</span>
@@ -251,13 +264,6 @@
         </div>
         <div id="playerList">
             </div>
-    </div>
-
-    <div class="neo-box">
-        <div class="list-header" style="background:#fff; border-bottom:2px solid #000;">VS. VISUALIZER</div>
-        <div class="chart-wrapper">
-            <canvas id="ratingChart"></canvas>
-        </div>
     </div>
 
     <details>
@@ -365,8 +371,43 @@
 
             const labels = activePlayers.map(p => p.username.substring(0, 10)); // Truncate names
             const data = activePlayers.map(p => p.rapidRating);
+            // Calculate differences for the chart
+            const diffs = activePlayers.map(p => {
+                if (p.previousRating !== null && p.rapidRating !== null) {
+                    return p.rapidRating - p.previousRating;
+                }
+                return 0;
+            });
 
             if (ratingChart) ratingChart.destroy();
+
+            // Custom plugin to draw difference labels
+            const diffLabelPlugin = {
+                id: 'diffLabels',
+                afterDatasetsDraw(chart, args, options) {
+                    const { ctx, data } = chart;
+
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((bar, index) => {
+                            const diff = diffs[index];
+                            if (diff !== 0) {
+                                const text = diff > 0 ? `+${diff}` : `${diff}`;
+                                const x = bar.x;
+                                const y = bar.y - 10; // 10px above the bar
+
+                                ctx.save();
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.font = "bold 12px 'Courier New'";
+                                ctx.fillStyle = diff > 0 ? '#059669' : '#DC2626'; // Green/Red
+                                ctx.fillText(text, x, y);
+                                ctx.restore();
+                            }
+                        });
+                    });
+                }
+            };
 
             ratingChart = new Chart(ctx, {
                 type: 'bar',
@@ -381,6 +422,7 @@
                         barPercentage: 0.6
                     }]
                 },
+                plugins: [diffLabelPlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -394,6 +436,11 @@
                         x: {
                             grid: { display: false },
                             ticks: { font: { family: "'Courier New'" }, color: '#000', autoSkip: false, maxRotation: 90, minRotation: 0 }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 20 // Extra space for labels
                         }
                     }
                 }
