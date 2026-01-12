@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neo Rapid Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* === NEO-BRUTALIST VARIABLES === */
+        :root {
+            --bg-color: #f0f0f0;
+            --card-bg: #ffffff;
+            --border-color: #000000;
+            --border-width: 3px;
+            --shadow-offset: 4px;
+            
+            /* Palette */
+            --accent-primary: #8B5CF6; /* Violet */
+            --accent-success: #10B981; /* Green */
+            --accent-danger: #EF4444;  /* Red */
+            --accent-warning: #F59E0B; /* Orange */
+            --accent-action: #3B82F6;  /* Blue */
+        }
+
+        /* === RESET & BASE === */
+        * {
+            box-sizing: border-box;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace; /* Retained monospace per preference */
+            background-color: var(--accent-primary);
+            color: var(--border-color);
+            min-height: 100vh;
+        }
+
+        /* === COMMON COMPONENTS === */
+        .neo-box {
+            background: var(--card-bg);
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--border-color);
+            margin-bottom: 16px;
+            border-radius: 0; /* Sharp edges */
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            margin: 0;
+            padding: 12px;
+            background: #000;
+            color: #fff;
+            text-align: center;
+            border-bottom: var(--border-width) solid var(--border-color);
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: 2px 2px 0 0 var(--border-color);
+            padding: 10px 16px;
+            text-transform: uppercase;
+            transition: all 0.1s;
+        }
+
+        button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 0 var(--border-color);
+        }
+
+        input {
+            border: var(--border-width) solid var(--border-color);
+            padding: 10px;
+            font-family: inherit;
+            border-radius: 0;
+        }
+
+        /* === HEADER & CONTROLS === */
+        .header-controls {
+            padding: 12px;
+            display: flex;
+            gap: 8px;
+            flex-direction: column;
+        }
+
+        .status-bar {
+            padding: 8px;
+            font-weight: bold;
+            text-align: center;
+            background: #fff;
+            border: var(--border-width) solid var(--border-color);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .status-bar.error { background: var(--accent-danger); color: white; }
+        .status-bar.loading { background: var(--accent-warning); }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #usernameInput { flex-grow: 1; }
+        
+        .btn-add { background-color: var(--accent-success); color: white; }
+        .btn-refresh { 
+            background-color: var(--accent-action); 
+            color: white; 
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+        }
+
+        /* === LEADERBOARD === */
+        .leaderboard {
+            padding: 0;
+        }
+        
+        .list-header {
+            padding: 8px 12px;
+            background: #e5e5e5;
+            border-bottom: var(--border-width) solid var(--border-color);
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 2px solid var(--border-color);
+            background: #fff;
+        }
+        
+        .player-row:last-child { border-bottom: none; }
+        .player-row:nth-child(even) { background: #fafafa; }
+
+        .rank { 
+            font-weight: 900; 
+            font-size: 1.2rem; 
+            width: 30px;
+            color: #666;
+        }
+
+        .p-info {
+            flex-grow: 1;
+            padding: 0 8px;
+        }
+        
+        .p-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: block;
+        }
+        
+        .p-rating {
+            font-size: 1rem;
+            color: #000;
+        }
+
+        .diff { font-size: 0.8em; font-weight: bold; margin-left: 6px; }
+        .diff.up { color: #059669; }     /* Darker green for text */
+        .diff.down { color: #DC2626; }   /* Darker red for text */
+        .diff.neutral { color: #666; }
+
+        .btn-del {
+            background: #fff;
+            color: #000;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            min-width: auto;
+            box-shadow: 1px 1px 0 0 #000;
+        }
+        .btn-del:active { transform: translate(1px, 1px); box-shadow: none; }
+
+        /* === COMPACT CHART === */
+        .chart-wrapper {
+            padding: 12px;
+            height: 250px;
+            background: white;
+        }
+
+        /* === SETTINGS (COLLAPSIBLE) === */
+        details {
+            margin-top: 16px;
+        }
+        
+        summary {
+            background: #000;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            list-style: none; /* Hide default arrow */
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--border-color);
+        }
+
+        .settings-content {
+            background: white;
+            padding: 12px;
+            border: var(--border-width) solid var(--border-color);
+            border-top: none;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            font-size: 0.8rem;
+            flex: 1;
+        }
+
+        /* === MOBILE TWEAKS === */
+        @media (max-width: 400px) {
+            .input-row { flex-direction: column; }
+            .btn-add { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="neo-box">
+        <h1>♞ Rapid Tracker</h1>
+        
+        <div class="header-controls">
+            <div id="status" class="status-bar">System Ready</div>
+            
+            <button id="refreshAllBtn" class="btn-refresh">REFRESH RATINGS</button>
+
+            <div class="input-row" style="margin-top: 8px;">
+                <input type="text" id="usernameInput" placeholder="Chess.com Username">
+                <button id="addPlayerBtn" class="btn-add">ADD</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="neo-box leaderboard">
+        <div class="list-header">
+            <span>RANK / PLAYER</span>
+            <span>RATING</span>
+        </div>
+        <div id="playerList">
+            </div>
+    </div>
+
+    <div class="neo-box">
+        <div class="list-header" style="background:#fff; border-bottom:2px solid #000;">VS. VISUALIZER</div>
+        <div class="chart-wrapper">
+            <canvas id="ratingChart"></canvas>
+        </div>
+    </div>
+
+    <details>
+        <summary>⚙ DATA OPTIONS</summary>
+        <div class="settings-content">
+            <button id="exportDataBtn" class="btn-secondary">EXPORT JSON</button>
+            <button id="importDataBtn" class="btn-secondary">IMPORT JSON</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        </div>
+    </details>
+
+    <script>
+        // === STATE ===
+        let players = [];
+        let ratingChart = null;
+        
+        const DEFAULT_PLAYERS = [ ];
+
+        // === STORAGE ===
+        function loadPlayers() {
+            try {
+                const stored = localStorage.getItem('chessRatingTracker');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    players = data.players || [];
+                } else {
+                    players = DEFAULT_PLAYERS.map(username => ({
+                        username,
+                        rapidRating: null,
+                        previousRating: null,
+                        lastUpdated: null
+                    }));
+                    savePlayers();
+                }
+            } catch (error) {
+                setStatus('Load Failed', 'error');
+            }
+        }
+
+        function savePlayers() {
+            try {
+                // We preserve historyData key if it exists in localstorage to not break backward compatibility
+                // but we don't use it in this UI version
+                const existing = localStorage.getItem('chessRatingTracker');
+                const existingData = existing ? JSON.parse(existing) : {};
+                
+                const data = { 
+                    players,
+                    historyData: existingData.historyData || {} 
+                };
+                localStorage.setItem('chessRatingTracker', JSON.stringify(data));
+            } catch (e) { console.error(e); }
+        }
+
+        // === UI RENDERING ===
+        function updateUI() {
+            const list = document.getElementById('playerList');
+            list.innerHTML = '';
+
+            // Sort: High Rating -> Low Rating -> No Rating
+            const sorted = [...players].sort((a, b) => {
+                if (a.rapidRating === null) return 1;
+                if (b.rapidRating === null) return -1;
+                return b.rapidRating - a.rapidRating;
+            });
+
+            sorted.forEach((p, index) => {
+                const row = document.createElement('div');
+                row.className = 'player-row';
+
+                // Calculate diff
+                let diffHtml = '';
+                if (p.previousRating !== null && p.rapidRating !== null) {
+                    const diff = p.rapidRating - p.previousRating;
+                    if (diff > 0) diffHtml = `<span class="diff up">▲${diff}</span>`;
+                    else if (diff < 0) diffHtml = `<span class="diff down">▼${Math.abs(diff)}</span>`;
+                    else diffHtml = `<span class="diff neutral">-</span>`;
+                }
+
+                const ratingDisplay = p.rapidRating ? p.rapidRating : '---';
+
+                row.innerHTML = `
+                    <div style="display:flex; align-items:center;">
+                        <span class="rank">${index + 1}</span>
+                        <div class="p-info">
+                            <span class="p-name">${p.username}</span>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="p-rating">${ratingDisplay}${diffHtml}</span>
+                        <div style="margin-top:4px;">
+                            <button class="btn-del" onclick="removePlayer('${p.username}')">X</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            updateChart(sorted);
+        }
+
+        function updateChart(sortedPlayers) {
+            const ctx = document.getElementById('ratingChart').getContext('2d');
+            const activePlayers = sortedPlayers.filter(p => p.rapidRating !== null).slice(0, 10); // Top 10 only for compactness
+
+            const labels = activePlayers.map(p => p.username.substring(0, 10)); // Truncate names
+            const data = activePlayers.map(p => p.rapidRating);
+
+            if (ratingChart) ratingChart.destroy();
+
+            ratingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Rating',
+                        data: data,
+                        backgroundColor: '#8B5CF6',
+                        borderColor: '#000',
+                        borderWidth: 2,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: '#ddd', drawBorder: false },
+                            ticks: { font: { family: "'Courier New'" }, color: '#000' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: "'Courier New'" }, color: '#000', autoSkip: false, maxRotation: 90, minRotation: 0 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = `status-bar ${type}`;
+            setTimeout(() => {
+                if(type !== 'loading') el.className = 'status-bar';
+            }, 3000);
+        }
+
+        // === ACTIONS ===
+        function addPlayer() {
+            const input = document.getElementById('usernameInput');
+            const name = input.value.trim();
+            if (!name) return;
+            
+            if (players.some(p => p.username.toLowerCase() === name.toLowerCase())) {
+                setStatus('Player exists', 'error');
+                return;
+            }
+
+            players.push({ username: name, rapidRating: null, previousRating: null, lastUpdated: null });
+            savePlayers();
+            updateUI();
+            input.value = '';
+            setStatus(`Added ${name}`);
+        }
+
+        window.removePlayer = function(username) {
+            if(!confirm(`Remove ${username}?`)) return;
+            players = players.filter(p => p.username !== username);
+            savePlayers();
+            updateUI();
+        };
+
+        async function fetchRating(username) {
+            const res = await fetch(`https://api.chess.com/pub/player/${username}/stats`);
+            if (!res.ok) throw new Error(res.status);
+            const data = await res.json();
+            return data.chess_rapid?.last?.rating || null;
+        }
+
+        async function refreshAll() {
+            const btn = document.getElementById('refreshAllBtn');
+            btn.disabled = true;
+            btn.textContent = "UPDATING...";
+            setStatus('Fetching data...', 'loading');
+
+            let errors = 0;
+            for (let i = 0; i < players.length; i++) {
+                const p = players[i];
+                try {
+                    const newRating = await fetchRating(p.username);
+                    if (newRating !== null) {
+                        p.previousRating = p.rapidRating; // Shift old rating
+                        p.rapidRating = newRating;
+                        p.lastUpdated = Date.now();
+                    }
+                } catch (e) {
+                    console.error(e);
+                    errors++;
+                }
+                // Rate limit guard (Active delay)
+                await new Promise(r => setTimeout(r, 500)); 
+            }
+
+            savePlayers();
+            updateUI();
+            btn.disabled = false;
+            btn.textContent = "REFRESH RATINGS";
+            setStatus(errors > 0 ? `Done with ${errors} errors` : 'All Updated', errors > 0 ? 'error' : '');
+        }
+
+        // === IMPORT/EXPORT ===
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(localStorage.getItem('chessRatingTracker'));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "chess_ratings.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if(json.players) {
+                        players = json.players;
+                        savePlayers();
+                        updateUI();
+                        setStatus('Import Success');
+                    }
+                } catch(err) { setStatus('Invalid File', 'error'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // === INIT ===
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPlayers();
+            updateUI();
+
+            document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
+            document.getElementById('refreshAllBtn').addEventListener('click', refreshAll);
+            document.getElementById('exportDataBtn').addEventListener('click', exportData);
+            document.getElementById('importDataBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
+            document.getElementById('importFileInput').addEventListener('change', (e) => {
+                if (e.target.files.length) importData(e.target.files[0]);
+            });
+        });
+    </script>
+</body>
+</html>
