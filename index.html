@@ -321,6 +321,59 @@
         const DEFAULT_PLAYERS = [ ];
 
         // === HELPER FUNCTIONS ===
+        function drawSparkline(canvas, history) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (!history || history.length < 2) {
+                // If not enough data, just draw a dot in the middle if there is 1 point
+                if(history && history.length === 1) {
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(width/2, height/2, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                return;
+            }
+
+            const min = Math.min(...history);
+            const max = Math.max(...history);
+            const range = max - min || 1;
+
+            const padding = 2;
+            const stepX = (width - padding * 2) / (history.length - 1);
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1.5;
+
+            history.forEach((val, i) => {
+                const x = padding + i * stepX;
+                // Invert Y because canvas origin is top-left
+                const normalized = (val - min) / range;
+                const y = height - padding - (normalized * (height - padding * 2));
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+
+            ctx.stroke();
+
+            // Draw last point dot
+            const lastVal = history[history.length - 1];
+            const lastX = padding + (history.length - 1) * stepX;
+            const lastNormalized = (lastVal - min) / range;
+            const lastY = height - padding - (lastNormalized * (height - padding * 2));
+
+            ctx.fillStyle = history[history.length-1] >= history[0] ? '#10B981' : '#EF4444'; // Green or Red dot based on trend
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         function getRankTitle(rating) {
             if (!rating) return { title: '', class: '' };
             if (rating < 400) return { title: 'RNG ENJOYER', class: 'rank-rng' };
@@ -346,12 +399,17 @@
                 if (stored) {
                     const data = JSON.parse(stored);
                     players = data.players || [];
+                    // Backfill history if missing
+                    players.forEach(p => {
+                        if (!p.history) p.history = [];
+                    });
                 } else {
                     players = DEFAULT_PLAYERS.map(username => ({
                         username,
                         rapidRating: null,
                         previousRating: null,
-                        lastUpdated: null
+                        lastUpdated: null,
+                        history: []
                     }));
                     savePlayers();
                 }
@@ -398,9 +456,9 @@
 
                 // Modifiers
                 const ghostClass = ghost ? 'ghost-text' : '';
-                const ghostIcon = ghost ? ' 👻' : '';
+                const ghostIcon = '';
                 const miaStamp = ghost ? '<span class="mia-stamp">MIA</span>' : '';
-                const crown = isPeak ? ' 👑' : '';
+                const crown = '';
 
                 // Calculate diff
                 let diffHtml = '';
@@ -424,6 +482,11 @@
                             </div>
                         </div>
                     </div>
+
+                    <div style="margin-right: 12px;">
+                        <canvas class="sparkline-canvas" width="60" height="20"></canvas>
+                    </div>
+
                     <div style="text-align:right;">
                         <span class="p-rating ${ghostClass}">${ratingDisplay}${crown}${diffHtml}</span>
                         <div style="margin-top:4px;">
@@ -432,6 +495,12 @@
                     </div>
                 `;
                 list.appendChild(row);
+
+                // Draw Sparkline
+                const canvas = row.querySelector('.sparkline-canvas');
+                if (p.history) {
+                    drawSparkline(canvas, p.history);
+                }
             });
 
             updateChart(sorted);
@@ -443,6 +512,8 @@
 
             const labels = activePlayers.map(p => p.username.substring(0, 10)); // Truncate names
             const data = activePlayers.map(p => p.rapidRating);
+            const backgroundColors = activePlayers.map(p => isGhost(p.lastGameDate) ? '#9CA3AF' : '#8B5CF6');
+
             // Calculate differences for the chart
             const diffs = activePlayers.map(p => {
                 if (p.previousRating !== null && p.rapidRating !== null) {
@@ -488,7 +559,7 @@
                     datasets: [{
                         label: 'Rating',
                         data: data,
-                        backgroundColor: '#8B5CF6',
+                        backgroundColor: backgroundColors,
                         borderColor: '#000',
                         borderWidth: 2,
                         barPercentage: 0.6
@@ -539,7 +610,7 @@
                 return;
             }
 
-            players.push({ username: name, rapidRating: null, previousRating: null, lastUpdated: null });
+            players.push({ username: name, rapidRating: null, previousRating: null, lastUpdated: null, history: [] });
             savePlayers();
             updateUI();
             input.value = '';
@@ -575,6 +646,17 @@
                 try {
                     const result = await fetchRating(p.username);
                     if (result.rating !== null) {
+                        // Update History (Only if changed or first load)
+                        if (!p.history) p.history = [];
+
+                        // Push if history is empty OR rating is different from the last known rating
+                        const lastStored = p.history.length > 0 ? p.history[p.history.length - 1] : null;
+
+                        if (lastStored === null || lastStored !== result.rating) {
+                            p.history.push(result.rating);
+                            if (p.history.length > 5) p.history.shift(); // Keep last 5
+                        }
+
                         p.previousRating = p.rapidRating; // Shift old rating
                         p.rapidRating = result.rating;
                         p.lastGameDate = result.date;
