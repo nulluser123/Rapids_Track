@@ -6,20 +6,25 @@
     <title>Neo Rapid Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* === NEO-BRUTALIST VARIABLES === */
+        /* === MODERN VARIABLES === */
         :root {
-            --bg-color: #f0f0f0;
+            --bg-color: #f8fafc; /* Slate-50 */
             --card-bg: #ffffff;
-            --border-color: #000000;
-            --border-width: 3px;
-            --shadow-offset: 4px;
+            --text-primary: #1e293b; /* Slate-800 */
+            --text-secondary: #64748b; /* Slate-500 */
+            --border-color: #e2e8f0; /* Slate-200 */
+            --border-width: 1px;
+
+            /* Shadows & Radius */
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-md: 0.5rem;
             
             /* Palette */
-            --accent-primary: #8B5CF6; /* Violet */
+            --accent-primary: #4F46E5; /* Indigo-600 */
             --accent-success: #10B981; /* Green */
             --accent-danger: #EF4444;  /* Red */
             --accent-warning: #F59E0B; /* Orange */
-            --accent-action: #3B82F6;  /* Blue */
         }
 
         /* === RESET & BASE === */
@@ -31,60 +36,74 @@
 
         /* PALETTE'S A11Y FIX: Visible Focus Indicators */
         *:focus-visible {
-            outline: 3px solid #000;
+            outline: 2px solid var(--accent-primary);
             outline-offset: 2px;
         }
 
         body {
             margin: 0;
-            padding: 12px;
-            font-family: 'Courier New', Courier, monospace; /* Retained monospace per preference */
-            background-color: var(--accent-primary);
-            color: var(--border-color);
+            padding: 24px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
             min-height: 100vh;
+            line-height: 1.5;
         }
 
         /* === COMMON COMPONENTS === */
         .neo-box {
             background: var(--card-bg);
             border: var(--border-width) solid var(--border-color);
-            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--border-color);
-            margin-bottom: 16px;
-            border-radius: 0; /* Sharp edges */
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 24px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
         }
 
         h1 {
             font-size: 1.5rem;
-            text-transform: uppercase;
+            font-weight: 800;
             margin: 0;
-            padding: 12px;
-            background: #000;
-            color: #fff;
+            padding: 16px;
+            background: #fff;
+            color: var(--text-primary);
             text-align: center;
-            border-bottom: var(--border-width) solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            letter-spacing: -0.025em;
         }
 
         button {
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 600;
             font-family: inherit;
-            border: var(--border-width) solid var(--border-color);
-            box-shadow: 2px 2px 0 0 var(--border-color);
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
             padding: 10px 16px;
-            text-transform: uppercase;
-            transition: all 0.1s;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         button:active {
-            transform: translate(2px, 2px);
-            box-shadow: 0 0 0 0 var(--border-color);
+            transform: translateY(0);
         }
 
         input {
-            border: var(--border-width) solid var(--border-color);
-            padding: 10px;
+            border: 1px solid #cbd5e1;
+            padding: 10px 12px;
             font-family: inherit;
-            border-radius: 0;
+            border-radius: var(--radius-md);
+            transition: border-color 0.15s ease;
+        }
+
+        input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            outline: none;
         }
 
         /* === HEADER & CONTROLS === */
@@ -97,15 +116,34 @@
 
         .status-bar {
             padding: 8px;
-            font-weight: bold;
+            font-weight: 600;
             text-align: center;
-            background: #fff;
-            border: var(--border-width) solid var(--border-color);
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
             margin-bottom: 8px;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
         }
-        .status-bar.error { background: var(--accent-danger); color: white; }
-        .status-bar.loading { background: var(--accent-warning); }
+        .status-bar.error { background: #fee2e2; color: #b91c1c; }
+        .status-bar.loading { background: #fef3c7; color: #b45309; }
+
+        /* Progress Bar */
+        .progress-container {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent-primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-container.active { display: block; }
 
         .input-row {
             display: flex;
@@ -129,10 +167,14 @@
         }
         
         .list-header {
-            padding: 8px 12px;
-            background: #e5e5e5;
-            border-bottom: var(--border-width) solid var(--border-color);
-            font-weight: bold;
+            padding: 12px 16px;
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
             display: flex;
             justify-content: space-between;
         }
@@ -141,13 +183,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px;
-            border-bottom: 2px solid var(--border-color);
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
             background: #fff;
+            transition: background 0.2s;
         }
         
         .player-row:last-child { border-bottom: none; }
-        .player-row:nth-child(even) { background: #fafafa; }
+        .player-row:hover { background: #f8fafc; }
 
         .rank { 
             font-weight: 900; 
@@ -271,14 +314,14 @@
             left: 0;
             width: 320px;
             height: 100vh;
-            background: var(--bg-color);
-            border-right: var(--border-width) solid var(--border-color);
+            background: #fff;
+            border-right: none;
             transform: translateX(-100%);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            box-shadow: 4px 0 0 0 rgba(0,0,0,0.2);
+            box-shadow: 20px 0 25px -5px rgba(0, 0, 0, 0.1), 10px 0 10px -5px rgba(0, 0, 0, 0.04);
         }
 
         .side-drawer.open {
@@ -286,24 +329,28 @@
         }
 
         .drawer-header {
-            background: #000;
-            color: #fff;
-            padding: 12px;
+            background: #fff;
+            color: var(--text-primary);
+            padding: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: var(--border-width) solid var(--border-color);
-            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 800;
+        }
+
+        .drawer-header span {
+            font-size: 1.1rem;
         }
 
         .close-btn {
             background: transparent;
-            color: #fff;
-            border: none;
-            box-shadow: none;
+            color: var(--text-secondary);
             font-size: 1.5rem;
             padding: 0 8px;
+            border: none;
         }
+        .close-btn:hover { color: var(--accent-danger); }
 
         .drawer-content {
             padding: 16px;
@@ -349,33 +396,38 @@
 
         .coord-display {
             font-size: 4rem;
-            font-weight: 900;
+            font-weight: 800;
             margin: 30px 0;
             padding: 20px;
-            background: #fff;
-            border: var(--border-width) solid var(--border-color);
-            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--border-color);
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
         }
 
         .choice-btn {
             width: 100%;
             margin-bottom: 12px;
             padding: 16px;
-            font-size: 1.2rem;
-            font-weight: bold;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: 1px solid #e2e8f0;
         }
 
-        .choice-btn.white { background: #fff; color: #000; }
-        .choice-btn.black { background: #333; color: #fff; }
+        .choice-btn.white { background: #fff; color: #1e293b; }
+        .choice-btn.white:hover { background: #f1f5f9; }
+
+        .choice-btn.black { background: #1e293b; color: #fff; border-color: #1e293b; }
+        .choice-btn.black:hover { background: #334155; }
 
         .feedback {
             min-height: 24px;
-            font-weight: bold;
+            font-weight: 600;
             margin: 20px 0;
             padding: 10px;
+            border-radius: var(--radius-md);
         }
-        .feedback.correct { background: var(--accent-success); color: #fff; border: 2px solid #000; }
-        .feedback.wrong { background: var(--accent-danger); color: #fff; border: 2px solid #000; }
+        .feedback.correct { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .feedback.wrong { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
         .streak-counter {
             font-size: 0.9rem;
@@ -415,6 +467,10 @@
         <div class="header-controls">
             <div id="status" class="status-bar">System Ready</div>
             
+            <div id="progressContainer" class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+
             <button id="refreshAllBtn" class="btn-refresh">REFRESH RATINGS</button>
 
             <div class="input-row" style="margin-top: 8px;">
@@ -677,7 +733,8 @@
 
             const labels = activePlayers.map(p => p.username.substring(0, 10)); // Truncate names
             const data = activePlayers.map(p => p.rapidRating);
-            const backgroundColors = activePlayers.map(p => isGhost(p.lastGameDate) ? '#9CA3AF' : '#8B5CF6');
+            // Modern Colors: Primary Accent, Gray for MIA
+            const backgroundColors = activePlayers.map(p => isGhost(p.lastGameDate) ? '#94a3b8' : '#4F46E5');
 
             // Calculate differences for the chart
             const diffs = activePlayers.map(p => {
@@ -707,8 +764,8 @@
                                 ctx.save();
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.font = "bold 12px 'Courier New'";
-                                ctx.fillStyle = diff > 0 ? '#059669' : '#DC2626'; // Green/Red
+                                ctx.font = "bold 12px sans-serif";
+                                ctx.fillStyle = diff > 0 ? '#10B981' : '#EF4444'; // Green/Red
                                 ctx.fillText(text, x, y);
                                 ctx.restore();
                             }
@@ -725,8 +782,8 @@
                         label: 'Rating',
                         data: data,
                         backgroundColor: backgroundColors,
-                        borderColor: '#000',
-                        borderWidth: 2,
+                        borderRadius: 4,
+                        borderSkipped: false,
                         barPercentage: 0.6
                     }]
                 },
@@ -738,12 +795,12 @@
                     scales: {
                         y: {
                             beginAtZero: false,
-                            grid: { color: '#ddd', drawBorder: false },
-                            ticks: { font: { family: "'Courier New'" }, color: '#000' }
+                            grid: { color: '#e2e8f0', drawBorder: false },
+                            ticks: { font: { family: "system-ui" }, color: '#64748b' }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { font: { family: "'Courier New'" }, color: '#000', autoSkip: false, maxRotation: 90, minRotation: 0 }
+                            ticks: { font: { family: "system-ui" }, color: '#64748b', autoSkip: false, maxRotation: 45, minRotation: 0 }
                         }
                     },
                     layout: {
@@ -801,12 +858,23 @@
 
         async function refreshAll() {
             const btn = document.getElementById('refreshAllBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+
             btn.disabled = true;
             btn.textContent = "UPDATING...";
             setStatus('Fetching data...', 'loading');
 
+            // Reset & Show Progress
+            progressBar.style.width = '0%';
+            progressContainer.classList.add('active');
+
             let errors = 0;
             for (let i = 0; i < players.length; i++) {
+                // Update Progress
+                const percent = Math.round(((i) / players.length) * 100);
+                progressBar.style.width = `${percent}%`;
+
                 const p = players[i];
                 try {
                     const result = await fetchRating(p.username);
@@ -839,6 +907,12 @@
                 // Rate limit guard (Active delay)
                 await new Promise(r => setTimeout(r, 500)); 
             }
+
+            // Finish Progress
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressContainer.classList.remove('active');
+            }, 1000);
 
             savePlayers();
             updateUI();
