@@ -264,6 +264,141 @@
         .rank-wizard { background: #8B5CF6; border-color: #8B5CF6; }
         .rank-engine { background: #000; border-color: #000; }
 
+        /* === SIDEBAR / DRAWER === */
+        .side-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 320px;
+            height: 100vh;
+            background: var(--bg-color);
+            border-right: var(--border-width) solid var(--border-color);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 0 0 rgba(0,0,0,0.2);
+        }
+
+        .side-drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            background: #000;
+            color: #fff;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: var(--border-width) solid var(--border-color);
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: transparent;
+            color: #fff;
+            border: none;
+            box-shadow: none;
+            font-size: 1.5rem;
+            padding: 0 8px;
+        }
+
+        .drawer-content {
+            padding: 16px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.open {
+            display: block;
+            opacity: 1;
+        }
+
+        /* === MENU BUTTON === */
+        .menu-btn {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 100;
+            background: #fff;
+            padding: 6px 10px;
+            font-size: 1.2rem;
+            line-height: 1;
+            box-shadow: 2px 2px 0 0 #000;
+        }
+
+        /* === VISUALIZATION TOOL === */
+        .vis-tool {
+            text-align: center;
+        }
+
+        .coord-display {
+            font-size: 4rem;
+            font-weight: 900;
+            margin: 30px 0;
+            padding: 20px;
+            background: #fff;
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--border-color);
+        }
+
+        .choice-btn {
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 16px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .choice-btn.white { background: #fff; color: #000; }
+        .choice-btn.black { background: #333; color: #fff; }
+
+        .feedback {
+            min-height: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 10px;
+        }
+        .feedback.correct { background: var(--accent-success); color: #fff; border: 2px solid #000; }
+        .feedback.wrong { background: var(--accent-danger); color: #fff; border: 2px solid #000; }
+
+        .streak-counter {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .mini-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            border: 2px solid #000;
+            display: none;
+        }
+        .mini-board.visible { display: grid; }
+
+        .sq { width: 100%; height: 100%; }
+        .sq.light { background: #eee; }
+        .sq.dark { background: #555; }
+        .sq.target { background: var(--accent-success) !important; border: 2px solid #000; }
+
         /* === MOBILE TWEAKS === */
         @media (max-width: 400px) {
             .input-row { flex-direction: column; }
@@ -273,7 +408,8 @@
 </head>
 <body>
 
-    <div class="neo-box">
+    <div class="neo-box" style="position: relative;">
+        <button id="menuBtn" class="menu-btn">☰</button>
         <h1>♞ Rapid Tracker</h1>
         
         <div class="header-controls">
@@ -312,6 +448,35 @@
             <input type="file" id="importFileInput" accept=".json" style="display: none;">
         </div>
     </details>
+
+    <!-- SIDEBAR DRAWER -->
+    <div id="sideDrawer" class="side-drawer">
+        <div class="drawer-header">
+            <span>MENTAL TRAINER</span>
+            <button id="closeDrawerBtn" class="close-btn">×</button>
+        </div>
+        <div class="drawer-content">
+            <div class="vis-tool">
+                <p>What color is this square?</p>
+                <div id="targetCoord" class="coord-display">?</div>
+
+                <button id="btnWhite" class="choice-btn white">WHITE</button>
+                <button id="btnBlack" class="choice-btn black">BLACK</button>
+
+                <div id="visFeedback" class="feedback"></div>
+                <div id="streakCounter" class="streak-counter">Streak: 0</div>
+
+                <div style="margin-top: 20px;">
+                    <button id="toggleBoardBtn" class="btn-secondary">TOGGLE BOARD</button>
+                </div>
+
+                <div id="miniBoard" class="mini-board">
+                    <!-- JS will populate -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="overlay" class="overlay"></div>
 
     <script>
         // === STATE ===
@@ -709,10 +874,103 @@
             reader.readAsText(file);
         }
 
+        // === MENTAL TRAINER LOGIC ===
+        let currentTarget = null; // { file: 0..7, rank: 0..7, coord: 'e4' }
+        let streak = 0;
+
+        function toggleDrawer(open) {
+            const drawer = document.getElementById('sideDrawer');
+            const overlay = document.getElementById('overlay');
+            if (open) {
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+                if(!currentTarget) nextRound();
+            } else {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+        }
+
+        function nextRound() {
+            // Pick random file and rank (0-7)
+            const f = Math.floor(Math.random() * 8);
+            const r = Math.floor(Math.random() * 8);
+
+            // Files: a=0 ... h=7
+            // Ranks: 1=0 ... 8=7 (Wait, standard notation 1 is bottom. Let's align)
+            // Let's use standard algebraic notation logic:
+            // File: 'abcdefgh'[f]
+            // Rank: r + 1
+
+            const fileChar = 'abcdefgh'[f];
+            const rankNum = r + 1;
+
+            currentTarget = {
+                file: f,
+                rank: r,
+                coord: `${fileChar}${rankNum}`,
+                isWhite: (f + r) % 2 !== 0 // Odd sum = White (e.g. h1: 7+0=7 -> White)
+            };
+
+            // a1 (0,0) -> Black (Sum 0)
+            // h1 (7,0) -> White (Sum 7)
+            // e4 (4,3) -> White (Sum 7)
+
+            document.getElementById('targetCoord').textContent = currentTarget.coord;
+            document.getElementById('visFeedback').textContent = '';
+            document.getElementById('visFeedback').className = 'feedback';
+
+            // Reset Board Highlight
+            drawMiniBoard(null);
+        }
+
+        function checkAnswer(isWhiteChoice) {
+            if (!currentTarget) return;
+
+            const isCorrect = isWhiteChoice === currentTarget.isWhite;
+            const fb = document.getElementById('visFeedback');
+
+            if (isCorrect) {
+                streak++;
+                fb.textContent = "CORRECT!";
+                fb.className = 'feedback correct';
+                setTimeout(nextRound, 800);
+            } else {
+                streak = 0;
+                const correctColor = currentTarget.isWhite ? "WHITE" : "BLACK";
+                fb.textContent = `WRONG! ${currentTarget.coord} is ${correctColor}`;
+                fb.className = 'feedback wrong';
+                // Show on board
+                drawMiniBoard(currentTarget);
+            }
+
+            document.getElementById('streakCounter').textContent = `Streak: ${streak}`;
+        }
+
+        function drawMiniBoard(highlightTarget) {
+            const board = document.getElementById('miniBoard');
+            board.innerHTML = '';
+
+            // Render 8x8 (Rank 8 at top, Rank 1 at bottom)
+            for (let r = 7; r >= 0; r--) {
+                for (let f = 0; f < 8; f++) {
+                    const div = document.createElement('div');
+                    const isWhite = (f + r) % 2 !== 0;
+                    div.className = `sq ${isWhite ? 'light' : 'dark'}`;
+
+                    if (highlightTarget && highlightTarget.file === f && highlightTarget.rank === r) {
+                        div.classList.add('target');
+                    }
+                    board.appendChild(div);
+                }
+            }
+        }
+
         // === INIT ===
         document.addEventListener('DOMContentLoaded', () => {
             loadPlayers();
             updateUI();
+            drawMiniBoard();
 
             document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
             document.getElementById('refreshAllBtn').addEventListener('click', refreshAll);
@@ -720,6 +978,19 @@
             document.getElementById('importDataBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
             document.getElementById('importFileInput').addEventListener('change', (e) => {
                 if (e.target.files.length) importData(e.target.files[0]);
+            });
+
+            // Drawer Events
+            document.getElementById('menuBtn').addEventListener('click', () => toggleDrawer(true));
+            document.getElementById('closeDrawerBtn').addEventListener('click', () => toggleDrawer(false));
+            document.getElementById('overlay').addEventListener('click', () => toggleDrawer(false));
+
+            // Tool Events
+            document.getElementById('btnWhite').addEventListener('click', () => checkAnswer(true));
+            document.getElementById('btnBlack').addEventListener('click', () => checkAnswer(false));
+            document.getElementById('toggleBoardBtn').addEventListener('click', () => {
+                const b = document.getElementById('miniBoard');
+                b.classList.toggle('visible');
             });
         });
     </script>
