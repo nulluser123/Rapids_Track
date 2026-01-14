@@ -897,9 +897,6 @@
 
                 const p = players[i];
 
-                // Rate limit guard (Concurrent delay)
-                const delayPromise = new Promise(r => setTimeout(r, 500));
-
                 try {
                     const result = await fetchRating(p.username);
                     if (result.rating !== null) {
@@ -928,8 +925,6 @@
                     console.error(e);
                     errors++;
                 }
-
-                await delayPromise;
             }
 
             // Finish Progress
