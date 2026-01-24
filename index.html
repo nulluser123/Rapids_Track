@@ -10,7 +10,7 @@
 <body>
 
     <div class="neo-box" style="position: relative;">
-        <button id="menuBtn" class="menu-btn">☰</button>
+        <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
         <h1>♞ Rapid Tracker</h1>
 
         <div class="header-controls">
@@ -53,14 +53,14 @@
     <div id="sideDrawer" class="side-drawer">
         <div class="drawer-header">
             <span>MENU</span>
-            <button id="closeDrawerBtn" class="close-btn">×</button>
+            <button id="closeDrawerBtn" class="close-btn" aria-label="Close menu">×</button>
         </div>
         <div class="drawer-content">
 
             <div style="margin-bottom: 24px;">
                 <div style="font-weight:800; margin-bottom:12px; font-size:0.9rem; color:var(--text-secondary);">ADD PLAYER</div>
                 <div class="input-row">
-                    <input type="text" id="usernameInput" placeholder="Chess.com Username">
+                    <input type="text" id="usernameInput" placeholder="Chess.com Username" aria-label="Chess.com Username">
                     <button id="addPlayerBtn" class="btn-add">ADD</button>
                 </div>
             </div>
@@ -242,6 +242,19 @@
             const computedStyle = getComputedStyle(document.body);
             const strokeColor = computedStyle.getPropertyValue('--text-primary').trim();
 
+            if (players.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state" style="text-align:center; padding: 40px 20px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">♟️</div>
+                        <h3 style="margin: 0 0 8px 0;">No players yet</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 24px;">Add a Chess.com username to start tracking.</p>
+                        <button class="btn-add" onclick="toggleDrawer(true); setTimeout(() => document.getElementById('usernameInput').focus(), 100);">
+                            + ADD PLAYER
+                        </button>
+                    </div>
+                `;
+            }
+
             // Sort: High Rating -> Low Rating -> No Rating
             const sorted = [...players].sort((a, b) => {
                 if (a.rapidRating === null) return 1;
@@ -292,7 +305,7 @@
                     <div style="text-align:right;">
                         <span class="p-rating ${ghostClass}">${ratingDisplay}${crown}${diffHtml}</span>
                         <div style="margin-top:4px;">
-                            <button class="btn-del" onclick="removePlayer('${p.username}')">X</button>
+                            <button class="btn-del" aria-label="Remove player ${p.username}" onclick="removePlayer('${p.username}')">X</button>
                         </div>
                     </div>
                 `;
