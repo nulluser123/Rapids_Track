@@ -1,4 +1,10 @@
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+import re
+
+with open('style.css', 'r') as f:
+    css = f.read()
+
+# 1. Add Fonts and Update Variables
+new_vars = """@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
 /* === MODERN VARIABLES === */
 :root {
@@ -24,22 +30,13 @@
 /* Remove dark mode override to enforce light theme */
 :root[data-theme="dark"] {
     /* No-op, force light theme */
-}
+}"""
 
-/* === RESET & BASE === */
-        * {
-            box-sizing: border-box;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+css = re.sub(r'/\* === MODERN VARIABLES === \*/.*?/\* === RESET & BASE === \*/', new_vars + '\n\n/* === RESET & BASE === */', css, flags=re.DOTALL)
 
-        /* PALETTE'S A11Y FIX: Visible Focus Indicators */
-        *:focus-visible {
-            outline: 2px solid var(--accent-primary);
-            outline-offset: 2px;
-        }
 
-        body {
+# 2. Update Body and Base Layout
+new_body = """body {
     margin: 0;
     padding: 0;
     font-family: 'Inter', sans-serif;
@@ -77,7 +74,7 @@
 /* Grid Row utility */
 .grid-row {
     display: grid;
-    grid-template-columns: 30px 1fr 80px 100px 50px;
+    grid-template-columns: 30px 1fr 80px 70px 40px;
     align-items: center;
     gap: 8px;
 }
@@ -85,29 +82,13 @@
 .monospace {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
-}
+}"""
 
-        /* === COMMON COMPONENTS === */
-        .neo-box {
-    background: var(--card-bg);
-    border: var(--border-width) solid var(--border-color);
-    box-shadow: var(--shadow-soft);
-    margin-bottom: 16px;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
+css = re.sub(r'body \{.*?\}', new_body, css, flags=re.DOTALL)
 
-/* Override old neo-box */
-.old-neo-box {
-            background: var(--card-bg);
-            border: var(--border-width) solid var(--border-color);
-            box-shadow: var(--shadow-soft);
-            margin-bottom: 24px;
-            border-radius: var(--radius-md);
-            overflow: hidden;
-        }
-
-        h1 {
+# 3. Update Box and Typography
+css = css.replace('.neo-box {', '.neo-box {\n    background: var(--card-bg);\n    border: var(--border-width) solid var(--border-color);\n    box-shadow: var(--shadow-soft);\n    margin-bottom: 16px;\n    border-radius: var(--radius-md);\n    overflow: hidden;\n}\n\n/* Override old neo-box */\n.old-neo-box {')
+css = re.sub(r'h1 \{.*?\}', """h1 {
     font-size: 11px;
     font-weight: 600;
     margin: 0;
@@ -117,9 +98,10 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-bottom: 1px solid var(--border-color);
-}
+}""", css, flags=re.DOTALL)
 
-        button {
+# 4. Buttons
+new_buttons = """button {
     cursor: pointer;
     font-weight: 600;
     font-family: 'Inter', sans-serif;
@@ -153,14 +135,12 @@ button:hover {
     background-color: #2563eb;
     color: white;
     border-color: #2563eb;
-}
+}"""
 
-        /* === LEADERBOARD === */
-        .leaderboard {
-            padding: 0;
-        }
+css = re.sub(r'button \{.*?\.btn-refresh \{.*?\}', new_buttons, css, flags=re.DOTALL)
 
-        .list-header {
+# 5. Leaderboard Header and Row
+new_lb = """.list-header {
     padding: 12px 16px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
@@ -221,21 +201,12 @@ button:hover {
     color: var(--accent-danger);
     border-color: var(--accent-danger);
     background: #fef2f2;
-}
+}"""
 
-        /* === COMPACT CHART === */
-        .chart-wrapper {
-            padding: 12px;
-            height: 250px;
-            background: var(--card-bg);
-        }
+css = re.sub(r'\.list-header \{.*\.btn-del:active \{.*?\}', new_lb, css, flags=re.DOTALL)
 
-        /* === SETTINGS (COLLAPSIBLE) === */
-        details {
-            margin-top: 16px;
-        }
-
-        summary {
+# 6. Details / Summary arrow
+new_details = """summary {
     background: var(--card-bg);
     color: var(--text-secondary);
     padding: 16px;
@@ -260,63 +231,13 @@ summary::before {
 }
 details[open] summary::before {
     transform: rotate(90deg);
-}
+}"""
 
-        .settings-content {
-            background: var(--card-bg);
-            padding: 12px;
-            border: var(--border-width) solid var(--border-color);
-            border-top: none;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn-secondary {
-            background: var(--card-bg);
-            font-size: 0.8rem;
-            flex: 1;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        /* === BADGES & TAGS === */
-        .mia-stamp {
-            color: var(--accent-danger);
-            border: 2px solid var(--accent-danger);
-            padding: 0px 4px;
-            font-weight: 900;
-            transform: rotate(-10deg);
-            display: inline-block;
-            margin-right: 6px;
-            font-size: 0.7rem;
-            letter-spacing: 1px;
-        }
-
-        .ghost-text {
-            color: #aaa !important;
-        }
-
-        /* === SIDEBAR / DRAWER === */
+css = re.sub(r'summary \{.*?\}', new_details, css, flags=re.DOTALL)
 
 
-        .sq { width: 100%; height: 100%; }
-        .sq.light { background: #eee; }
-        .sq.dark { background: #555; }
-        .sq.target { background: var(--accent-success) !important; border: 2px solid #000; }
+# Clean up redundant old classes
+css = re.sub(r'\.side-drawer \{.*?\.mini-board\.visible \{ display: grid; \}', '', css, flags=re.DOTALL)
 
-        /* === MOBILE TWEAKS === */
-        @media (max-width: 400px) {
-            .input-row { flex-direction: column; }
-            .btn-add { width: 100%; }
-        }
-
-        /* === FOOTER === */
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            margin-top: 40px;
-            border-top: 1px solid var(--border-color);
-        }
+with open('style.css', 'w') as f:
+    f.write(css)

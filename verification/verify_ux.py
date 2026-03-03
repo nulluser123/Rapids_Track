@@ -53,9 +53,7 @@ def run():
             print("Testing CTA Interaction...")
             add_btn.click()
 
-            # Wait for drawer to open
-            page.wait_for_selector("#sideDrawer.open")
-            print("✅ Side drawer opened.")
+
 
             # Check Focus (wait a bit for the setTimeout)
             page.wait_for_timeout(200)
@@ -73,20 +71,6 @@ def run():
         # Verify A11y Attributes
         print("Verifying A11y Attributes...")
         try:
-            menu_label = page.get_attribute("#menuBtn", "aria-label")
-            if menu_label == "Open menu":
-                print("✅ Menu button has correct aria-label.")
-            else:
-                print(f"❌ Menu button aria-label is '{menu_label}'.")
-                sys.exit(1)
-
-            close_label = page.get_attribute("#closeDrawerBtn", "aria-label")
-            if close_label == "Close menu":
-                print("✅ Close drawer button has correct aria-label.")
-            else:
-                print(f"❌ Close drawer button aria-label is '{close_label}'.")
-                sys.exit(1)
-
             input_label = page.get_attribute("#usernameInput", "aria-label")
             if input_label == "Chess.com Username":
                 print("✅ Username input has correct aria-label.")
