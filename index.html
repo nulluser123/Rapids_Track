@@ -8,98 +8,95 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <div class="neo-box" style="position: relative;">
-        <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
-        <h1>♞ Rapid Tracker</h1>
-
-        <div class="header-controls">
-            <div id="status" class="status-bar">System Ready</div>
-
-            <div id="progressContainer" class="progress-container">
-                <div id="progressBar" class="progress-bar"></div>
+    <div class="app-container">
+        <!-- LEFT PANE: Main Content -->
+        <div class="main-pane">
+            <div class="neo-box header-card">
+                <h1 class="section-title">♞ RAPID TRACKER</h1>
+                <div class="header-controls">
+                    <div id="status" class="status-bar">SYSTEM READY</div>
+                    <div id="progressContainer" class="progress-container">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                </div>
             </div>
 
-            <button id="refreshAllBtn" class="btn-refresh">REFRESH RATINGS</button>
-        </div>
-    </div>
-
-    <div class="neo-box">
-        <div class="list-header" style="background:#fff; border-bottom:2px solid #000;">VS. VISUALIZER</div>
-        <div class="chart-wrapper">
-            <canvas id="ratingChart"></canvas>
-        </div>
-    </div>
-
-    <div class="neo-box leaderboard">
-        <div class="list-header">
-            <span>RANK / PLAYER</span>
-            <span>RATING</span>
-        </div>
-        <div id="playerList">
+            <div class="neo-box leaderboard">
+                <div class="list-header grid-row">
+                    <span>RANK</span>
+                    <span>PLAYER</span>
+                    <span>TREND</span>
+                    <span style="text-align:right;">RATING</span>
+                    <span></span>
+                </div>
+                <div id="playerList">
+                    <!-- JS will populate -->
+                </div>
             </div>
-    </div>
-
-    <details>
-        <summary>⚙ DATA OPTIONS</summary>
-        <div class="settings-content">
-            <button id="exportDataBtn" class="btn-secondary">EXPORT JSON</button>
-            <button id="importDataBtn" class="btn-secondary">IMPORT JSON</button>
-            <input type="file" id="importFileInput" accept=".json" style="display: none;">
         </div>
-    </details>
 
-    <!-- SIDEBAR DRAWER -->
-    <div id="sideDrawer" class="side-drawer">
-        <div class="drawer-header">
-            <span>MENU</span>
-            <button id="closeDrawerBtn" class="close-btn" aria-label="Close menu">×</button>
-        </div>
-        <div class="drawer-content">
+        <!-- RIGHT PANE: Side Panel -->
+        <div class="side-pane">
 
-            <div style="margin-bottom: 24px;">
-                <div style="font-weight:800; margin-bottom:12px; font-size:0.9rem; color:var(--text-secondary);">ADD PLAYER</div>
-                <div class="input-row">
+            <div class="neo-box sticky-section">
+                <div class="section-title" style="padding: 16px 16px 0;">➕ ADD PLAYER</div>
+                <div class="input-row" style="padding: 16px;">
                     <input type="text" id="usernameInput" placeholder="Chess.com Username" aria-label="Chess.com Username">
                     <button id="addPlayerBtn" class="btn-add">ADD</button>
                 </div>
             </div>
 
-            <div style="margin-bottom: 24px;">
-                <div style="font-weight:800; margin-bottom:12px; font-size:0.9rem; color:var(--text-secondary);">SETTINGS</div>
-                <button id="toggleThemeBtn" class="btn-secondary" style="width:100%; text-align:left;">🌙 TOGGLE DARK MODE</button>
-            </div>
-
-            <hr style="border:0; border-top:1px solid var(--border-color); margin:20px 0;">
-
-            <div class="vis-tool">
-                <div style="font-weight:800; margin-bottom:12px; font-size:0.9rem; color:var(--text-secondary);">MENTAL TRAINER</div>
-                <p>What color is this square?</p>
-                <div id="targetCoord" class="coord-display">?</div>
-
-                <button id="btnWhite" class="choice-btn white">WHITE</button>
-                <button id="btnBlack" class="choice-btn black">BLACK</button>
-
-                <div id="visFeedback" class="feedback"></div>
-                <div id="streakCounter" class="streak-counter">Streak: 0</div>
-
-                <div style="margin-top: 20px;">
-                    <button id="toggleBoardBtn" class="btn-secondary">TOGGLE BOARD</button>
-                </div>
-
-                <div id="miniBoard" class="mini-board">
-                    <!-- JS will populate -->
+            <div class="neo-box">
+                <div class="section-title" style="padding: 16px 16px 0;">📊 VS. VISUALIZER</div>
+                <div class="chart-wrapper">
+                    <canvas id="ratingChart"></canvas>
                 </div>
             </div>
+
+            <div class="neo-box" style="padding: 16px;">
+                 <button id="refreshAllBtn" class="btn-refresh">REFRESH RATINGS</button>
+            </div>
+
+            <details class="neo-box">
+                <summary class="section-title">⚙️ DATA OPTIONS</summary>
+                <div class="settings-content">
+                    <button id="exportDataBtn" class="btn-secondary">EXPORT JSON</button>
+                    <button id="importDataBtn" class="btn-secondary">IMPORT JSON</button>
+                    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                </div>
+            </details>
+
+            <details class="neo-box">
+                <summary class="section-title">🧠 MENTAL TRAINER</summary>
+                <div class="vis-tool settings-content" style="flex-direction: column;">
+                    <p style="margin: 0 0 12px 0; font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">What color is this square?</p>
+                    <div id="targetCoord" class="coord-display monospace">?</div>
+
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <button id="btnWhite" class="choice-btn white">WHITE</button>
+                        <button id="btnBlack" class="choice-btn black">BLACK</button>
+                    </div>
+
+                    <div id="visFeedback" class="feedback"></div>
+                    <div id="streakCounter" class="streak-counter monospace">STREAK: 0</div>
+
+                    <div style="margin-top: 12px;">
+                        <button id="toggleBoardBtn" class="btn-secondary" style="width: 100%;">TOGGLE BOARD</button>
+                    </div>
+
+                    <div id="miniBoard" class="mini-board">
+                        <!-- JS will populate -->
+                    </div>
+                </div>
+            </details>
+
+            <footer class="footer monospace">
+                Neo Rapid Tracker <span id="version-number">v1.0.2</span>
+            </footer>
+
         </div>
     </div>
-    <div id="overlay" class="overlay"></div>
-
-    <footer class="footer">
-        Neo Rapid Tracker <span id="version-number">v1.0.2</span>
-    </footer>
-
-    <script>
+<script>
         // === STATE ===
         let players = [];
         let ratingChart = null;
@@ -248,7 +245,7 @@
                         <div style="font-size: 3rem; margin-bottom: 16px;">♟️</div>
                         <h3 style="margin: 0 0 8px 0;">No players yet</h3>
                         <p style="color: var(--text-secondary); margin-bottom: 24px;">Add a Chess.com username to start tracking.</p>
-                        <button class="btn-add" onclick="toggleDrawer(true); setTimeout(() => document.getElementById('usernameInput').focus(), 100);">
+                        <button class="btn-add" onclick="document.getElementById('usernameInput').focus();">
                             + ADD PLAYER
                         </button>
                     </div>
@@ -287,26 +284,23 @@
 
                 const ratingDisplay = p.rapidRating ? p.rapidRating : '---';
 
+                row.className = 'player-row grid-row';
                 row.innerHTML = `
-                    <div style="display:flex; align-items:center;">
-                        <span class="rank">${index + 1}</span>
-                        <div class="p-info ${ghostClass}">
-                            <div style="display:flex; align-items:center; flex-wrap:wrap;">
-                                ${miaStamp}
-                                <span class="p-name">${p.username}${ghostIcon}</span>
-                            </div>
+                    <span class="rank monospace">${index + 1}</span>
+                    <div class="p-info ${ghostClass}">
+                        <div style="display:flex; align-items:center; flex-wrap:wrap;">
+                            ${miaStamp}
+                            <span class="p-name">${p.username}${ghostIcon}</span>
                         </div>
                     </div>
-
-                    <div style="margin-right: 12px;">
+                    <div style="display: flex; align-items: center;">
                         <canvas class="sparkline-canvas" width="60" height="20"></canvas>
                     </div>
-
+                    <div style="text-align:right; display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+                        <span class="p-rating monospace ${ghostClass}">${ratingDisplay}${crown}</span><span class="monospace">${diffHtml}</span>
+                    </div>
                     <div style="text-align:right;">
-                        <span class="p-rating ${ghostClass}">${ratingDisplay}${crown}${diffHtml}</span>
-                        <div style="margin-top:4px;">
-                            <button class="btn-del" aria-label="Remove player ${p.username}" onclick="removePlayer('${p.username}')">X</button>
-                        </div>
+                        <button class="btn-del" aria-label="Remove player ${p.username}" onclick="removePlayer('${p.username}')">DEL</button>
                     </div>
                 `;
                 list.appendChild(row);
@@ -650,10 +644,10 @@
             });
 
             // Drawer Events
-            document.getElementById('menuBtn').addEventListener('click', () => toggleDrawer(true));
-            document.getElementById('closeDrawerBtn').addEventListener('click', () => toggleDrawer(false));
-            document.getElementById('overlay').addEventListener('click', () => toggleDrawer(false));
-            document.getElementById('toggleThemeBtn').addEventListener('click', toggleTheme);
+            // Removed menuBtn listener
+            // Removed closeDrawerBtn listener
+            // Removed overlay listener
+            // Removed theme toggle listener
 
             // Tool Events
             document.getElementById('btnWhite').addEventListener('click', () => checkAnswer(true));

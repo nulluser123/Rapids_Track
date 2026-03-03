@@ -14,7 +14,7 @@ def verify_style(page):
     # Get the computed style of the body
     body_bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
 
-    # Check if it matches the variable --bg-color default #f8fafc (rgb(248, 250, 252))
+    # Check if it matches the variable --bg-color default #f1f5f9 (rgb(241, 245, 249))
     print(f"Body background color: {body_bg}")
 
     # Also check if h1 has the correct style
