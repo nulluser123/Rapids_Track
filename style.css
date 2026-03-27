@@ -96,11 +96,7 @@ input[type="range"]::-webkit-slider-thumb {
 /* Dynamic Animation Utilities */
 .bar-grow-up {
     transform-origin: bottom;
-    animation: growUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    height: 0%;
-}
-@keyframes growUp {
-    from { height: 0%; }
+    transition: height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .flash-green {

@@ -444,7 +444,7 @@ const app = {
         const chartContainer = document.getElementById('chart-container');
         if(chartContainer) {
             const maxRating = Math.max(...chartData.map(d => d.p.rating), 1);
-            const minRating = Math.max(Math.min(...chartData.map(d => d.p.rating), 1) - 50, 0); // Tighter zoom
+            const minRating = Math.max(Math.min(...chartData.map(d => d.p.rating), 1) - 30, 0); // Increased contrast zoom
             const range = maxRating - minRating;
 
             let chartHtml = `
@@ -456,28 +456,34 @@ const app = {
                 </div>`;
 
             chartData.forEach((d, i) => {
-                const heightPct = Math.max(((d.p.rating - minRating) / range) * 95, 5); // 5% minimum
+                const heightPct = Math.max(((d.p.rating - minRating) / range) * 95, 5); 
                 const changeStr = d.change > 0 ? `+${d.change}` : d.change;
                 const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
                 const nameStr = d.p.originalUsername.substring(0, 8);
 
                 chartHtml += `
-                <div class="flex-1 flex flex-col items-center group relative cursor-pointer z-10" title="Rating: ${d.p.rating.toLocaleString()} | Change: ${changeStr}">
+                <div class="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer z-10" title="Rating: ${d.p.rating.toLocaleString()} | Change: ${changeStr}">
                     <div class="absolute -top-12 opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 bg-surface-container-highest border border-primary/20 shadow-xl rounded-lg px-4 py-2 pointer-events-none flex flex-col items-center z-50">
                         <span class="font-headline font-bold text-lg text-primary text-glow">${d.p.rating.toLocaleString()}</span>
                         <span class="text-[10px] font-bold ${changeColor} tracking-widest">${changeStr} Δ</span>
                     </div>
                     
-                    <div class="w-full max-w-[56px] bg-primary group-hover:bg-primary-container rounded-t-lg bar-grow-up transform transition-all duration-300 group-hover:scale-x-110 shadow-[0_0_15px_rgba(129,236,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,227,253,0.5)] border-t border-primary-container" style="animation-delay: ${i*0.08}s; --final-height: ${heightPct}%;"></div>
+                    <div class="w-full max-w-[56px] bg-primary group-hover:bg-primary-container rounded-t-lg bar-grow-up transform transition-all duration-300 group-hover:scale-x-110 shadow-[0_0_15px_rgba(129,236,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,227,253,0.5)] border-t border-primary-container" style="height: 0%;" data-height="${heightPct}%"></div>
                     
                     <span class="mt-4 text-[10px] sm:text-xs font-bold text-on-surface-variant group-hover:text-primary group-hover:scale-110 uppercase tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap w-full text-center transition-all duration-300">${nameStr}</span>
                 </div>`;
             });
 
             chartContainer.innerHTML = chartHtml;
-            chartContainer.querySelectorAll('.bar-grow-up').forEach(bar => {
-                bar.style.height = bar.style.getPropertyValue('--final-height');
-            });
+            
+            // Trigger animation reliably after DOM paints
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    chartContainer.querySelectorAll('.bar-grow-up').forEach(bar => {
+                        bar.style.height = bar.dataset.height;
+                    });
+                });
+            }, 50);
         }
 
         // Render List (Active only)
