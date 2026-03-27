@@ -1,0 +1,555 @@
+import { store } from './store.js';
+import { fetchPlayerStats, fetchAllPlayers } from './api.js';
+import { animateValue, FLIP } from './animations.js';
+
+const app = {
+    state: {
+        currentView: 'leaderboard',
+        settings: store.getSettings(),
+        players: store.getPlayers(),
+        isSyncing: false
+    },
+    
+    init() {
+        this.bindEvents();
+        this.renderAll();
+        // Set initial view
+        this.switchView('leaderboard');
+    },
+
+    bindEvents() {
+        // Navigation Logic
+        const navLinks = document.querySelectorAll('[data-view]');
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const view = link.getAttribute('data-view');
+                this.switchView(view);
+            });
+        });
+
+        // Add Player Modal
+        const btnAddOpen = document.getElementById('add-player-btn');
+        const fabAddOpen = document.getElementById('fab-add-player');
+        const modalAdd = document.getElementById('modal-add-player');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+        const btnConfirmAdd = document.getElementById('btn-confirm-add');
+        const inputUsername = document.getElementById('input-username');
+        const addError = document.getElementById('add-error');
+        
+        const openModal = () => {
+            modalAdd.classList.remove('hidden');
+            setTimeout(() => modalAdd.classList.add('show'), 10);
+            inputUsername.value = '';
+            addError.classList.add('hidden');
+            inputUsername.focus();
+        };
+
+        const closeModal = () => {
+            modalAdd.classList.remove('show');
+            setTimeout(() => modalAdd.classList.add('hidden'), 300);
+        };
+
+        if(btnAddOpen) btnAddOpen.addEventListener('click', openModal);
+        if(fabAddOpen) fabAddOpen.addEventListener('click', openModal);
+        if(btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
+
+        btnConfirmAdd.addEventListener('click', async () => {
+            const username = inputUsername.value.trim();
+            if(!username) return;
+            
+            // UI Loading logic
+            const spinner = document.getElementById('add-spinner');
+            const text = document.getElementById('add-text');
+            addError.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            text.textContent = 'Verifying...';
+            btnConfirmAdd.disabled = true;
+
+            const stats = await fetchPlayerStats(username);
+            
+            if (stats && stats.chess_rapid) {
+                const added = store.addPlayer(stats.name || username, stats);
+                if (added) {
+                    this.state.players = store.getPlayers();
+                    this.renderAll();
+                    closeModal();
+                } else {
+                    addError.textContent = 'Player already tracked.';
+                    addError.classList.remove('hidden');
+                }
+            } else {
+                addError.textContent = 'Player not found or no rapid stats available.';
+                addError.classList.remove('hidden');
+            }
+
+            spinner.classList.add('hidden');
+            text.textContent = 'Track Player';
+            btnConfirmAdd.disabled = false;
+        });
+
+        // Sync Button
+        const btnSync = document.getElementById('btn-sync');
+        if(btnSync) {
+            btnSync.addEventListener('click', () => this.syncData());
+        }
+
+        // Settings Buttons
+        const miaSlider = document.getElementById('mia-slider');
+        const miaVal = document.getElementById('mia-threshold-val');
+        if(miaSlider) {
+            miaSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                miaVal.textContent = val;
+                this.state.settings.miaThresholdDays = parseInt(val, 10);
+                store.saveSettings(this.state.settings);
+                this.renderAll(); // Re-render to show MIA changes instantly
+            });
+        }
+
+        const btnExport = document.getElementById('btn-export');
+        if(btnExport) btnExport.addEventListener('click', () => store.exportData());
+
+        const fileImport = document.getElementById('file-import');
+        if(fileImport) fileImport.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (store.importData(event.target.result)) {
+                    this.state.players = store.getPlayers();
+                    this.state.settings = store.getSettings();
+                    this.renderAll();
+                    alert("Import successful");
+                } else {
+                    alert("Import failed: Invalid JSON");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        const btnClear = document.getElementById('btn-clear');
+        if(btnClear) btnClear.addEventListener('click', () => {
+            if(confirm("Are you sure you want to delete all tracked players and history?")) {
+                store.clearAll();
+                this.state.players = {};
+                this.renderAll();
+            }
+        });
+    },
+
+    switchView(viewId) {
+        this.state.currentView = viewId;
+        
+        // Hide all views
+        document.querySelectorAll('.view').forEach(v => {
+            v.classList.remove('active');
+            // Wait for transition, then hide
+            setTimeout(() => { if (!v.classList.contains('active')) v.classList.add('hidden'); }, 300);
+        });
+        
+        // Show target view
+        const targetView = document.getElementById(`view-${viewId}`);
+        if(targetView) {
+            targetView.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => targetView.classList.add('active'), 10);
+        }
+
+        // Update nav active states
+        document.querySelectorAll('.nav-btn, .nav-btn-top, .nav-btn-mobile').forEach(btn => {
+            btn.classList.remove('active', 'active-mobile');
+            if (btn.getAttribute('data-view') === viewId) {
+                if(btn.classList.contains('nav-btn-mobile')) {
+                    // Mobile active state tweaks
+                    btn.classList.add('active-mobile');
+                    btn.classList.replace('text-slate-400', 'text-cyan-400');
+                    btn.querySelector('.nav-icon').style.fontVariationSettings = "'FILL' 1";
+                } else {
+                    btn.classList.add('active');
+                }
+            } else {
+                if(btn.classList.contains('nav-btn-mobile')) {
+                    btn.classList.replace('text-cyan-400', 'text-slate-400');
+                    btn.querySelector('.nav-icon').style.fontVariationSettings = "'FILL' 0";
+                }
+            }
+        });
+        
+        // Hide FAB on non-leaderboard pages
+        const fab = document.getElementById('fab-add-player');
+        if(fab) {
+            if(viewId === 'leaderboard') {
+                fab.classList.remove('hidden');
+            } else {
+                fab.classList.add('hidden');
+            }
+        }
+        
+        // Re-trigger animations if needed
+        if(viewId === 'comparison') {
+            this.renderComparisonContent(); // triggers bar chart animation
+        }
+    },
+
+    async syncData() {
+        if(this.state.isSyncing) return;
+        this.state.isSyncing = true;
+        
+        const syncText = document.getElementById('sync-status-text');
+        const syncIcon = document.getElementById('sync-status-indicator');
+        if(syncText) syncText.textContent = "Syncing...";
+        if(syncIcon) syncIcon.classList.replace('bg-primary', 'bg-secondary');
+
+        // Grab usernames
+        const usernames = Object.values(this.state.players).map(p => p.originalUsername);
+        
+        const results = await fetchAllPlayers(usernames);
+        
+        const oldRatings = {};
+        usernames.forEach(u => {
+             const key = u.toLowerCase();
+             oldRatings[key] = this.state.players[key].rating;
+        });
+
+        // Update store
+        store.updatePlayers(results);
+        this.state.players = store.getPlayers();
+        this.state.settings = store.getSettings();
+        
+        // Play animations for rank changes
+        const flip = new FLIP('#leaderboard-grid');
+        flip.read();
+        
+        this.renderAll();
+        
+        flip.play();
+
+        // Animate numbers for changed ratings
+        usernames.forEach(u => {
+            const key = u.toLowerCase();
+            const oldRating = oldRatings[key];
+            const newRating = this.state.players[key].rating;
+            if(oldRating !== newRating) {
+                const el = document.getElementById(`rating-val-${key}`);
+                if(el) animateValue(el, oldRating, newRating, 1000);
+            }
+        });
+
+        if(syncText) syncText.textContent = "Sync: 100%";
+        if(syncIcon) syncIcon.classList.replace('bg-secondary', 'bg-primary');
+        this.state.isSyncing = false;
+    },
+
+    isMIA(lastActiveUnix) {
+        const thresholdSeconds = this.state.settings.miaThresholdDays * 24 * 60 * 60;
+        const nowUnix = Date.now() / 1000;
+        return (nowUnix - lastActiveUnix) > thresholdSeconds;
+    },
+
+    getSortedPlayers() {
+        return Object.values(this.state.players).sort((a, b) => b.rating - a.rating);
+    },
+
+    getColorAccent(index) {
+        // Rotates through some branded tailwind colors for initals and charts
+        const colors = [
+            { bg: 'bg-secondary', text: 'text-on-secondary', border: 'border-secondary', stroke: 'stroke-secondary' },
+            { bg: 'bg-tertiary', text: 'text-on-tertiary', border: 'border-tertiary', stroke: 'stroke-tertiary' },
+            { bg: 'bg-primary-fixed-dim', text: 'text-on-primary-fixed-variant', border: 'border-primary', stroke: 'stroke-primary' },
+            { bg: 'bg-error', text: 'text-on-error', border: 'border-error', stroke: 'stroke-error' },
+            { bg: 'bg-secondary-container', text: 'text-on-secondary-container', border: 'border-secondary-container', stroke: 'stroke-secondary-container' }
+        ];
+        return colors[index % colors.length];
+    },
+
+    generateSparklineSVG(history, config) {
+        if (!history || history.length < 2) {
+             return `<svg class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30"><path d="M0,15 L100,15" stroke-linecap="round"></path></svg>`;
+        }
+        
+        // Take up to last 10 points for sparkline
+        const points = history.slice(-10);
+        const maxR = Math.max(...points.map(p => p.rating));
+        const minR = Math.min(...points.map(p => p.rating));
+        const range = maxR - minR || 1; // avoid division by zero
+        
+        const pathData = points.map((p, i) => {
+            const x = (i / (points.length - 1)) * 100;
+            // invert y so higher rating is top (lower y)
+            const y = 30 - (((p.rating - minR) / range) * 20 + 5); 
+            return `${i===0?'M':'L'}${x},${y}`;
+        }).join(" ");
+
+        return `
+            <svg class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30">
+                <path d="${pathData}" stroke-linecap="round" stroke-linejoin="round" class="sparkline-path" style="stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawSpark 1s ease-out forwards;"></path>
+            </svg>
+        `;
+    },
+
+    renderAll() {
+        this.renderLeaderboard();
+        if(this.state.currentView === 'comparison') this.renderComparisonContent();
+        this.renderSettings();
+    },
+
+    renderLeaderboard() {
+        const grid = document.getElementById('leaderboard-grid');
+        const count = document.getElementById('leaderboard-count');
+        if(!grid) return;
+
+        const players = this.getSortedPlayers();
+        count.textContent = `${players.length} players tracked across all shards`;
+
+        if (players.length === 0) {
+             grid.innerHTML = `<div class="p-8 text-center text-on-surface-variant glass-card rounded-lg">No players tracked yet. Add one to begin.</div>`;
+             return;
+        }
+
+        let html = '';
+        players.forEach((p, index) => {
+            const isMia = this.isMIA(p.lastActiveDate);
+            const rank = (index + 1).toString().padStart(2, '0');
+            const initials = p.originalUsername.substring(0, 2).toUpperCase();
+            const config = this.getColorAccent(index);
+            
+            // Calculate rating change
+            let ratingChange = 0;
+            if (p.history && p.history.length > 1) {
+                 ratingChange = p.rating - p.history[p.history.length - 2].rating;
+            }
+
+            const changeText = isMia ? '0.0' : (ratingChange === 0 ? '0.0' : (ratingChange > 0 ? `+${ratingChange}` : ratingChange));
+            const changeColor = ratingChange > 0 ? 'text-primary' : (ratingChange < 0 ? 'text-error' : 'text-on-surface-variant');
+            const changeIcon = ratingChange > 0 ? 'trending_up' : (ratingChange < 0 ? 'trending_down' : 'remove');
+
+            if (isMia) {
+                // MIA Row styling
+                const daysAgo = Math.floor(((Date.now()/1000) - p.lastActiveDate) / 86400);
+                html += `
+                    <div id="row-${p.originalUsername.toLowerCase()}" class="leaderboard-row group relative overflow-hidden glass-card rounded-lg opacity-40 grayscale transition-all duration-300 hover:opacity-70 hover:grayscale-0">
+                        <div class="flex items-center gap-4 px-4 sm:px-6 py-5 relative z-10">
+                            <div class="w-12 sm:w-16 flex justify-center">
+                                <span class="text-3xl font-headline font-bold text-outline leading-none">${rank}</span>
+                            </div>
+                            <div class="flex items-center gap-4 flex-1">
+                                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-surface-container-high flex items-center justify-center text-outline font-black text-lg">
+                                    ${initials}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-sm sm:text-lg font-bold font-body text-outline break-all">${p.originalUsername}</h3>
+                                        <span class="bg-outline-variant/20 text-outline text-[10px] px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>
+                                    </div>
+                                    <span class="text-xs text-outline/60 font-medium uppercase tracking-widest">Last seen ${daysAgo}d ago</span>
+                                </div>
+                            </div>
+                            <div class="hidden lg:block w-32 h-12">
+                                <svg class="w-full h-full stroke-outline fill-none stroke-[1] stroke-dasharray-4" viewBox="0 0 100 30">
+                                    <path d="M0,15 L100,15" stroke-linecap="round"></path>
+                                </svg>
+                            </div>
+                            <div class="text-right min-w-[80px] sm:min-w-[140px]">
+                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-3xl font-headline font-bold text-outline leading-none tabular-nums">
+                                    ${p.rating.toLocaleString()}
+                                </div>
+                                <div class="flex items-center justify-end gap-1 text-outline font-bold text-[10px] sm:text-sm mt-1">
+                                    <span class="material-symbols-outlined text-[10px] sm:text-sm">remove</span>
+                                    0.0
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Active Row styling
+                const primaryGlow = index === 0 ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_15px_rgba(129,236,255,0.6)]"></div><div class="absolute -left-20 top-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>` : '';
+                const rankClass = index === 0 ? 'text-5xl text-primary-dim' : 'text-3xl sm:text-4xl text-on-surface-variant/50';
+                
+                let avatarClass = `w-10 h-10 sm:w-14 sm:h-14 rounded-md flex items-center justify-center font-black text-lg sm:text-xl shadow-lg ${config.bg} ${config.text}`;
+                
+                html += `
+                    <div id="row-${p.originalUsername.toLowerCase()}" class="leaderboard-row group relative overflow-hidden glass-card rounded-lg transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-highest/90">
+                        ${primaryGlow}
+                        <div class="flex items-center gap-4 px-4 sm:px-6 py-5 relative z-10">
+                            <div class="w-12 sm:w-16 flex justify-center">
+                                <span class="font-headline font-black leading-none ${rankClass}">${index===0?'01':rank}</span>
+                            </div>
+                            <div class="flex flex-1 items-center gap-4">
+                                <div class="${avatarClass}">
+                                    ${initials}
+                                </div>
+                                <div>
+                                    <h3 class="text-sm sm:text-xl font-bold font-body text-on-background flex items-center gap-2 break-all">
+                                        ${p.originalUsername}
+                                        ${index === 0 ? '<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
+                                    </h3>
+                                    <span class="text-[10px] sm:text-xs text-on-surface-variant font-medium uppercase tracking-widest">${index === 0 ? 'Grandmaster Shard' : 'Ranked Contender'}</span>
+                                </div>
+                            </div>
+                            <div class="hidden lg:block w-32 h-12 opacity-80">
+                                ${this.generateSparklineSVG(p.history, config)}
+                            </div>
+                            <div class="text-right min-w-[80px] sm:min-w-[140px]">
+                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-4xl font-headline font-bold ${index===0?'text-primary text-glow':'text-on-background'} leading-none tabular-nums">
+                                    ${p.rating.toLocaleString()}
+                                </div>
+                                <div class="flex items-center justify-end gap-1 ${changeColor} font-bold text-[10px] sm:text-sm mt-1">
+                                    <span class="material-symbols-outlined text-[10px] sm:text-sm">${changeIcon}</span>
+                                    ${changeText}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        grid.innerHTML = html;
+    },
+
+    renderComparisonContent() {
+        // Only consider active players with changes for some stats
+        const players = this.getSortedPlayers();
+        const activePlayers = players.filter(p => !this.isMIA(p.lastActiveDate));
+        
+        let avgChange = 0;
+        let topGainer = { name: '...', change: 0 };
+        let biggestDrop = { name: '...', change: 0 };
+        
+        const chartData = [];
+        
+        players.forEach((p, index) => {
+            let change = 0;
+            if (p.history && p.history.length > 1) {
+                 change = p.rating - p.history[p.history.length - 2].rating;
+            }
+            
+            const isMia = this.isMIA(p.lastActiveDate);
+            
+            // Limit to top 6 for chart
+            if (index < 6) {
+                chartData.push({ p, change, isMia, config: this.getColorAccent(index) });
+            }
+
+            if (!isMia) {
+                avgChange += change;
+                if (change > topGainer.change) topGainer = { name: p.originalUsername, change };
+                if (change < biggestDrop.change) biggestDrop = { name: p.originalUsername, change };
+            }
+        });
+
+        if (activePlayers.length > 0) avgChange /= activePlayers.length;
+        
+        document.getElementById('avg-rating-change').textContent = (avgChange > 0 ? '+' : '') + avgChange.toFixed(1);
+        document.getElementById('avg-rating-icon').textContent = avgChange >= 0 ? 'trending_up' : 'trending_down';
+        document.getElementById('stat-top-gainer').textContent = `${topGainer.name} (+${topGainer.change})`;
+        document.getElementById('stat-biggest-drop').textContent = `${biggestDrop.name} (${biggestDrop.change})`;
+
+        // Render Chart
+        const chartContainer = document.getElementById('chart-container');
+        if(chartContainer) {
+            // Find max rating to scale bars
+            const maxRating = Math.max(...chartData.map(d => d.p.rating), 1);
+            const minRating = Math.min(...chartData.map(d => d.p.rating), 1) * 0.9; // Base buffer
+            const range = maxRating - minRating;
+
+            let chartHtml = `
+                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 py-1">
+                    <div class="border-t border-on-surface w-full"></div>
+                    <div class="border-t border-on-surface w-full"></div>
+                    <div class="border-t border-on-surface w-full"></div>
+                    <div class="border-t border-on-surface w-full"></div>
+                </div>`;
+
+            chartData.forEach((d, i) => {
+                const heightPct = Math.max(((d.p.rating - minRating) / range) * 100, 5); // 5% minimum
+                const changeStr = d.change > 0 ? `+${d.change}` : d.change;
+                const txtColorClass = d.isMia ? 'text-outline' : 'text-primary';
+                const bgColorClass = d.isMia ? 'bg-outline-variant opacity-40' : 'bg-primary shadow-[0_0_20px_rgba(129,236,255,0.2)]';
+                const nameStr = d.p.originalUsername.substring(0, 6);
+
+                // Add animation delay for stagger
+                chartHtml += `
+                <div class="flex-1 flex flex-col items-center group relative cursor-default">
+                    <span class="mb-2 text-xs font-headline font-bold ${txtColorClass} opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">${changeStr}</span>
+                    <div class="w-full max-w-[48px] ${bgColorClass} rounded-t-sm bar-grow-up" style="animation-delay: ${i*0.1}s; --final-height: ${heightPct}%;"></div>
+                    <span class="mt-4 text-[10px] sm:text-xs font-bold text-on-surface-variant group-hover:${txtColorClass} uppercase tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap w-full text-center">${nameStr}</span>
+                </div>`;
+            });
+
+            chartContainer.innerHTML = chartHtml;
+            // Inject dynamic keyframes height via JS mapping per element
+            chartContainer.querySelectorAll('.bar-grow-up').forEach(bar => {
+                const target = bar.style.getPropertyValue('--final-height');
+                // Create unique keyframe logic by replacing animation just setting height directly and using transition instead for simplicity or just apply height. Since animation uses start 0%, we set JS inline target height.
+                bar.style.height = target; // Fallback structure for bar growing style. css keyframes will animate 'from 0', 'to {inherit}' 
+            });
+        }
+
+        // Render List
+        const listContainer = document.getElementById('comparison-list');
+        if(listContainer) {
+            let listHtml = '';
+            chartData.forEach((d, i) => {
+                const changeStr = d.change > 0 ? `+${d.change} Δ` : `${d.change} Δ`;
+                if(d.isMia) {
+                     listHtml += `
+                     <div class="bg-surface-container-low opacity-60 p-4 sm:p-5 rounded-lg flex items-center justify-between border-l-2 border-outline-variant group">
+                        <div class="flex items-center gap-4 overflow-hidden">
+                            <div class="w-10 h-10 shrink-0 rounded bg-outline-variant/10 flex items-center justify-center grayscale">
+                                <span class="material-symbols-outlined text-outline text-xl">person_off</span>
+                            </div>
+                            <div class="truncate">
+                                <p class="font-bold text-outline truncate">${d.p.originalUsername}</p>
+                                <p class="text-[10px] text-on-surface-variant uppercase font-medium italic">Inactive</p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="font-headline text-lg font-bold text-outline">${d.p.rating}</p>
+                            <p class="text-xs text-outline font-bold">${changeStr}</p>
+                        </div>
+                    </div>`;
+                } else {
+                     listHtml += `
+                     <div class="bg-surface-container-high hover:bg-surface-container-highest transition-all p-4 sm:p-5 rounded-lg flex items-center justify-between group cursor-pointer">
+                        <div class="flex items-center gap-4 overflow-hidden">
+                            <div class="w-10 h-10 shrink-0 rounded bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-white/5">
+                                <span class="material-symbols-outlined text-primary text-xl">person</span>
+                            </div>
+                            <div class="truncate">
+                                <p class="font-bold text-on-background group-hover:text-primary transition-colors truncate">${d.p.originalUsername}</p>
+                                <p class="text-[10px] text-on-surface-variant uppercase font-medium truncate">Rank #${i+1} Global</p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="font-headline text-lg font-bold text-on-background">${d.p.rating}</p>
+                            <p class="text-xs text-primary font-bold">${changeStr}</p>
+                        </div>
+                    </div>`;
+                }
+            });
+            listContainer.innerHTML = listHtml;
+        }
+    },
+
+    renderSettings() {
+        document.getElementById('mia-slider').value = this.state.settings.miaThresholdDays;
+        document.getElementById('mia-threshold-val').textContent = this.state.settings.miaThresholdDays;
+        
+        if (this.state.settings.lastSync) {
+            const date = new Date(this.state.settings.lastSync);
+            document.getElementById('settings-last-sync').textContent = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + " UTC";
+        }
+
+        const players = this.getSortedPlayers();
+        const activeCount = players.filter(p => !this.isMIA(p.lastActiveDate)).length;
+        document.getElementById('settings-player-count').textContent = players.length;
+        document.getElementById('settings-active-count').textContent = activeCount;
+    }
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});

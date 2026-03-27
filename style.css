@@ -1,0 +1,149 @@
+/* Custom CSS to supplement Tailwind base classes, adhering to DESIGN.md */
+
+.glass-card, .glass-panel {
+    background: rgba(32, 38, 47, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(129, 236, 255, 0.1);
+}
+
+.text-glow {
+    text-shadow: 0 0 15px rgba(129, 236, 255, 0.4);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* SPA View Transitions */
+.view {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    transform: translateY(10px);
+}
+.view.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Settings Slider */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+    background: #20262f; /* surface-variant */
+    height: 4px;
+    border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -6px;
+    background-color: #81ecff; /* primary */
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(129, 236, 255, 0.4);
+}
+
+/* Nav Styles Active Trims */
+.nav-btn.active {
+    background-color: rgba(0, 227, 253, 0.1); /* primary-container */
+    color: #81ecff;
+    border-left: 4px solid #81ecff;
+}
+.nav-btn:not(.active) {
+    color: #64748b; /* slate-500 */
+    border-left: 4px solid transparent;
+}
+.nav-btn:not(.active):hover {
+    color: #cbd5e1; /* slate-300 */
+    background-color: rgba(30, 41, 59, 0.5); /* slate-800/50 */
+}
+
+/* Top Nav Active Trims */
+.nav-btn-top.active {
+    color: #81ecff;
+    border-bottom: 2px solid #81ecff;
+    padding-bottom: 4px;
+}
+.nav-btn-top:not(.active) {
+    color: #94a3b8; /* slate-400 */
+    border-bottom: 2px solid transparent;
+    padding-bottom: 4px;
+}
+.nav-btn-top:not(.active):hover {
+    color: #e2e8f0; /* slate-200 */
+}
+
+/* Modal Transitions */
+#modal-add-player.show {
+    display: flex;
+    opacity: 1;
+}
+#modal-add-player.show > div {
+    transform: scale(1);
+}
+
+/* Dynamic Animation Utilities */
+.bar-grow-up {
+    transform-origin: bottom;
+    animation: growUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    height: 0%;
+}
+@keyframes growUp {
+    from { height: 0%; }
+}
+
+.flash-green {
+    animation: flashGreen 1s ease-out;
+}
+@keyframes flashGreen {
+    0% { color: #81ecff; text-shadow: 0 0 20px #81ecff; }
+    10% { color: #fff; text-shadow: 0 0 30px #81ecff; }
+    100% { color: #81ecff; text-shadow: 0 0 15px rgba(129, 236, 255, 0.4); }
+}
+
+.flash-red {
+    animation: flashRed 1s ease-out;
+}
+@keyframes flashRed {
+    0% { color: #ff716c; text-shadow: 0 0 20px #ff716c; }
+    10% { color: #fff; text-shadow: 0 0 30px #ff716c; }
+    100% { color: #ff716c; text-shadow: none; }
+}
+
+/* FLIP Animation Base */
+.leaderboard-row {
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s;
+}
+
+/* Add row animation */
+@keyframes slideDownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.animate-add {
+    animation: slideDownFade 0.5s ease-out forwards;
+}
+
+/* Sparkline Draw */
+@keyframes drawSpark {
+    to {
+        stroke-dashoffset: 0;
+    }
+}

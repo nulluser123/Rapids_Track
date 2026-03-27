@@ -1,0 +1,14 @@
+# Ignore design mockups and original reference files
+/settings/
+/leaderboard/
+/rating_comparison/
+/grandmaster_flux/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignore IDE files
+.vscode/
+.idea/
