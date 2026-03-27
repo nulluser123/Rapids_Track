@@ -14,11 +14,25 @@ export const fetchPlayerStats = async (username) => {
 };
 
 export const fetchAllPlayers = async (usernames) => {
-    const promises = usernames.map(username => 
-        fetchPlayerStats(username).then(stats => ({ username, stats }))
-    );
-    const results = await Promise.allSettled(promises);
-    return results
-        .filter(r => r.status === 'fulfilled' && r.value.stats !== null)
-        .map(r => r.value);
+    const results = [];
+    const batchSize = 5; // Batch 5 requests at a time
+    
+    for (let i = 0; i < usernames.length; i += batchSize) {
+        const batch = usernames.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+            batch.map(async (username) => {
+                const stats = await fetchPlayerStats(username);
+                return stats && stats.chess_rapid ? { username, stats } : null;
+            })
+        );
+        
+        results.push(...batchResults.filter(r => r !== null));
+        
+        // Wait 100ms before next batch to be super safe
+        if (i + batchSize < usernames.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    
+    return results;
 };
