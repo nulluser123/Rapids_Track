@@ -410,34 +410,27 @@ const app = {
     },
 
     renderComparisonContent() {
-        // Only consider active players with changes for some stats
         const players = this.getSortedPlayers();
         const activePlayers = players.filter(p => !this.isMIA(p.lastActiveDate));
+        const chartData = [];
         
         let avgChange = 0;
         let topGainer = { name: '...', change: 0 };
         let biggestDrop = { name: '...', change: 0 };
         
-        const chartData = [];
-        
-        players.forEach((p, index) => {
+        activePlayers.forEach((p, index) => {
             let change = 0;
             if (p.history && p.history.length > 1) {
                  change = p.rating - p.history[p.history.length - 2].rating;
             }
             
-            const isMia = this.isMIA(p.lastActiveDate);
-            
-            // Limit to top 6 for chart
-            if (index < 6) {
-                chartData.push({ p, change, isMia, config: this.getColorAccent(index) });
+            if (index < 8) { // Top 8 active
+                chartData.push({ p, change, config: this.getColorAccent(index) });
             }
 
-            if (!isMia) {
-                avgChange += change;
-                if (change > topGainer.change) topGainer = { name: p.originalUsername, change };
-                if (change < biggestDrop.change) biggestDrop = { name: p.originalUsername, change };
-            }
+            avgChange += change;
+            if (topGainer.change === 0 || change > topGainer.change) topGainer = { name: p.originalUsername, change };
+            if (biggestDrop.change === 0 || change < biggestDrop.change) biggestDrop = { name: p.originalUsername, change };
         });
 
         if (activePlayers.length > 0) avgChange /= activePlayers.length;
@@ -450,85 +443,67 @@ const app = {
         // Render Chart
         const chartContainer = document.getElementById('chart-container');
         if(chartContainer) {
-            // Find max rating to scale bars
             const maxRating = Math.max(...chartData.map(d => d.p.rating), 1);
-            const minRating = Math.min(...chartData.map(d => d.p.rating), 1) * 0.9; // Base buffer
+            const minRating = Math.max(Math.min(...chartData.map(d => d.p.rating), 1) - 50, 0); // Tighter zoom
             const range = maxRating - minRating;
 
             let chartHtml = `
-                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 py-1">
-                    <div class="border-t border-on-surface w-full"></div>
-                    <div class="border-t border-on-surface w-full"></div>
-                    <div class="border-t border-on-surface w-full"></div>
-                    <div class="border-t border-on-surface w-full"></div>
+                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 py-2 z-0">
+                    <div class="border-t border-on-surface-variant w-full flex items-center"><span class="absolute -left-2 text-[8px] text-on-surface-variant font-bold -translate-y-1/2 bg-surface-container px-1 rounded transform -rotate-90 origin-left">MAX</span></div>
+                    <div class="border-t border-outline-variant w-full border-dashed"></div>
+                    <div class="border-t border-outline-variant w-full border-dashed"></div>
+                    <div class="border-t border-on-surface-variant w-full flex items-center"><span class="absolute -left-2 text-[8px] text-on-surface-variant font-bold -translate-y-1/2 bg-surface-container px-1 rounded transform -rotate-90 origin-left">MIN</span></div>
                 </div>`;
 
             chartData.forEach((d, i) => {
-                const heightPct = Math.max(((d.p.rating - minRating) / range) * 100, 5); // 5% minimum
+                const heightPct = Math.max(((d.p.rating - minRating) / range) * 95, 5); // 5% minimum
                 const changeStr = d.change > 0 ? `+${d.change}` : d.change;
-                const txtColorClass = d.isMia ? 'text-outline' : 'text-primary';
-                const bgColorClass = d.isMia ? 'bg-outline-variant opacity-40' : 'bg-primary shadow-[0_0_20px_rgba(129,236,255,0.2)]';
-                const nameStr = d.p.originalUsername.substring(0, 6);
+                const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
+                const nameStr = d.p.originalUsername.substring(0, 8);
 
-                // Add animation delay for stagger
                 chartHtml += `
-                <div class="flex-1 flex flex-col items-center group relative cursor-default">
-                    <span class="mb-2 text-xs font-headline font-bold ${txtColorClass} opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">${changeStr}</span>
-                    <div class="w-full max-w-[48px] ${bgColorClass} rounded-t-sm bar-grow-up" style="animation-delay: ${i*0.1}s; --final-height: ${heightPct}%;"></div>
-                    <span class="mt-4 text-[10px] sm:text-xs font-bold text-on-surface-variant group-hover:${txtColorClass} uppercase tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap w-full text-center">${nameStr}</span>
+                <div class="flex-1 flex flex-col items-center group relative cursor-pointer z-10" title="Rating: ${d.p.rating.toLocaleString()} | Change: ${changeStr}">
+                    <div class="absolute -top-12 opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 bg-surface-container-highest border border-primary/20 shadow-xl rounded-lg px-4 py-2 pointer-events-none flex flex-col items-center z-50">
+                        <span class="font-headline font-bold text-lg text-primary text-glow">${d.p.rating.toLocaleString()}</span>
+                        <span class="text-[10px] font-bold ${changeColor} tracking-widest">${changeStr} Δ</span>
+                    </div>
+                    
+                    <div class="w-full max-w-[56px] bg-primary group-hover:bg-primary-container rounded-t-lg bar-grow-up transform transition-all duration-300 group-hover:scale-x-110 shadow-[0_0_15px_rgba(129,236,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,227,253,0.5)] border-t border-primary-container" style="animation-delay: ${i*0.08}s; --final-height: ${heightPct}%;"></div>
+                    
+                    <span class="mt-4 text-[10px] sm:text-xs font-bold text-on-surface-variant group-hover:text-primary group-hover:scale-110 uppercase tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap w-full text-center transition-all duration-300">${nameStr}</span>
                 </div>`;
             });
 
             chartContainer.innerHTML = chartHtml;
-            // Inject dynamic keyframes height via JS mapping per element
             chartContainer.querySelectorAll('.bar-grow-up').forEach(bar => {
-                const target = bar.style.getPropertyValue('--final-height');
-                // Create unique keyframe logic by replacing animation just setting height directly and using transition instead for simplicity or just apply height. Since animation uses start 0%, we set JS inline target height.
-                bar.style.height = target; // Fallback structure for bar growing style. css keyframes will animate 'from 0', 'to {inherit}' 
+                bar.style.height = bar.style.getPropertyValue('--final-height');
             });
         }
 
-        // Render List
+        // Render List (Active only)
         const listContainer = document.getElementById('comparison-list');
         if(listContainer) {
             let listHtml = '';
             chartData.forEach((d, i) => {
                 const changeStr = d.change > 0 ? `+${d.change} Δ` : `${d.change} Δ`;
-                if(d.isMia) {
-                     listHtml += `
-                     <div class="bg-surface-container-low opacity-60 p-4 sm:p-5 rounded-lg flex items-center justify-between border-l-2 border-outline-variant group">
-                        <div class="flex items-center gap-4 overflow-hidden">
-                            <div class="w-10 h-10 shrink-0 rounded bg-outline-variant/10 flex items-center justify-center grayscale">
-                                <span class="material-symbols-outlined text-outline text-xl">person_off</span>
-                            </div>
-                            <div class="truncate">
-                                <p class="font-bold text-outline truncate">${d.p.originalUsername}</p>
-                                <p class="text-[10px] text-on-surface-variant uppercase font-medium italic">Inactive</p>
-                            </div>
+                const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
+                
+                listHtml += `
+                <div class="bg-surface-container-high hover:bg-surface-container-highest transition-all p-4 sm:p-5 rounded-lg flex items-center justify-between group cursor-pointer border border-transparent hover:border-primary/20">
+                    <div class="flex items-center gap-4 overflow-hidden">
+                        <div class="w-10 h-10 shrink-0 rounded bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-white/5 group-hover:shadow-[0_0_15px_rgba(129,236,255,0.3)] transition-all">
+                            <span class="material-symbols-outlined text-primary text-xl">person</span>
                         </div>
-                        <div class="text-right shrink-0">
-                            <p class="font-headline text-lg font-bold text-outline">${d.p.rating}</p>
-                            <p class="text-xs text-outline font-bold">${changeStr}</p>
+                        <div class="truncate">
+                            <p class="font-bold text-on-background group-hover:text-primary transition-colors truncate">${d.p.originalUsername}</p>
+                            <p class="text-[10px] text-on-surface-variant uppercase font-medium truncate">Rank #${i+1} Active</p>
                         </div>
-                    </div>`;
-                } else {
-                     listHtml += `
-                     <div class="bg-surface-container-high hover:bg-surface-container-highest transition-all p-4 sm:p-5 rounded-lg flex items-center justify-between group cursor-pointer">
-                        <div class="flex items-center gap-4 overflow-hidden">
-                            <div class="w-10 h-10 shrink-0 rounded bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-white/5">
-                                <span class="material-symbols-outlined text-primary text-xl">person</span>
-                            </div>
-                            <div class="truncate">
-                                <p class="font-bold text-on-background group-hover:text-primary transition-colors truncate">${d.p.originalUsername}</p>
-                                <p class="text-[10px] text-on-surface-variant uppercase font-medium truncate">Rank #${i+1} Global</p>
-                            </div>
-                        </div>
-                        <div class="text-right shrink-0">
-                            <p class="font-headline text-lg font-bold text-on-background">${d.p.rating}</p>
-                            <p class="text-xs text-primary font-bold">${changeStr}</p>
-                        </div>
-                    </div>`;
-                }
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="font-headline text-lg font-bold text-on-background">${d.p.rating.toLocaleString()}</p>
+                        <p class="text-xs ${changeColor} font-bold">${changeStr}</p>
+                    </div>
+                </div>`;
             });
             listContainer.innerHTML = listHtml;
         }

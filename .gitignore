@@ -12,3 +12,6 @@ desktop.ini
 # Ignore IDE files
 .vscode/
 .idea/
+
+# Ignore local files
+players.txt
