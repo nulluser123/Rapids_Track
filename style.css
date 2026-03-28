@@ -139,5 +139,6 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Sparkline Draw */
 @keyframes drawSpark {
+    to { stroke-dashoffset: 0; }
 }
 
