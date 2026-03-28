@@ -457,6 +457,7 @@ const app = {
 
             chartData.forEach((d, i) => {
                 const heightPct = Math.max(((d.p.rating - minRating) / range) * 95, 5); 
+                const changeIcon = d.change > 0 ? '▲' : (d.change < 0 ? '▼' : 'Δ');
                 const changeStr = d.change > 0 ? `+${d.change}` : d.change;
                 const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
                 const nameStr = d.p.originalUsername.substring(0, 8);
@@ -465,7 +466,7 @@ const app = {
                 <div class="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer z-10" title="Rating: ${d.p.rating.toLocaleString()} | Change: ${changeStr}">
                     <div class="absolute -top-12 opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 bg-surface-container-highest border border-primary/20 shadow-xl rounded-lg px-4 py-2 pointer-events-none flex flex-col items-center z-50">
                         <span class="font-headline font-bold text-lg text-primary text-glow">${d.p.rating.toLocaleString()}</span>
-                        <span class="text-[10px] font-bold ${changeColor} tracking-widest">${changeStr} Δ</span>
+                        <span class="text-[10px] font-bold ${changeColor} tracking-widest">${changeStr} ${changeIcon}</span>
                     </div>
                     
                     <div class="w-full max-w-[56px] bg-primary group-hover:bg-primary-container rounded-t-lg bar-grow-up transform transition-all duration-300 group-hover:scale-x-110 shadow-[0_0_15px_rgba(129,236,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,227,253,0.5)] border-t border-primary-container" style="height: 0%;" data-height="${heightPct}%"></div>
@@ -491,7 +492,8 @@ const app = {
         if(listContainer) {
             let listHtml = '';
             chartData.forEach((d, i) => {
-                const changeStr = d.change > 0 ? `+${d.change} Δ` : `${d.change} Δ`;
+                const changeIcon = d.change > 0 ? '▲' : (d.change < 0 ? '▼' : 'Δ');
+                const changeStr = d.change > 0 ? `+${d.change} ${changeIcon}` : `${d.change} ${changeIcon}`;
                 const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
                 
                 listHtml += `
