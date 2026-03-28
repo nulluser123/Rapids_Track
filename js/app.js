@@ -18,6 +18,7 @@ const app = {
     },
 
     bindEvents() {
+
         // Navigation Logic
         const navLinks = document.querySelectorAll('[data-view]');
         navLinks.forEach(link => {
@@ -29,7 +30,6 @@ const app = {
         });
 
         // Add Player Modal
-        const btnAddOpen = document.getElementById('add-player-btn');
         const fabAddOpen = document.getElementById('fab-add-player');
         const modalAdd = document.getElementById('modal-add-player');
         const btnCloseModal = document.getElementById('btn-close-modal');
@@ -50,7 +50,7 @@ const app = {
             setTimeout(() => modalAdd.classList.add('hidden'), 300);
         };
 
-        if(btnAddOpen) btnAddOpen.addEventListener('click', openModal);
+
         if(fabAddOpen) fabAddOpen.addEventListener('click', openModal);
         if(btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
 
