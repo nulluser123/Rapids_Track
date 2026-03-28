@@ -29,6 +29,15 @@ const app = {
             });
         });
 
+        // Global Search
+        const inputGlobalSearch = document.getElementById('input-global-search');
+        if (inputGlobalSearch) {
+            inputGlobalSearch.addEventListener('input', (e) => {
+                this.state.searchTerm = e.target.value.toLowerCase().trim();
+                this.renderAll();
+            });
+        }
+
         // Add Player Modal
         const fabAddOpen = document.getElementById('fab-add-player');
         const modalAdd = document.getElementById('modal-add-player');
@@ -248,7 +257,11 @@ const app = {
     },
 
     getSortedPlayers() {
-        return Object.values(this.state.players).sort((a, b) => b.rating - a.rating);
+        let players = Object.values(this.state.players).sort((a, b) => b.rating - a.rating);
+        if (this.state.searchTerm) {
+            players = players.filter(p => p.originalUsername.toLowerCase().includes(this.state.searchTerm));
+        }
+        return players;
     },
 
     getColorAccent(index) {
@@ -339,7 +352,7 @@ const app = {
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <h3 class="text-sm sm:text-lg font-bold font-body text-outline break-all">${p.originalUsername}</h3>
+                                        <a href="https://www.chess.com/member/${p.originalUsername}" target="_blank" class="text-sm sm:text-lg font-bold font-body text-outline break-all hover:text-cyan-400 transition-colors duration-300 block">${p.originalUsername}</a>
                                         <span class="bg-outline-variant/20 text-outline text-[10px] px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>
                                     </div>
                                     <span class="text-xs text-outline/60 font-medium uppercase tracking-widest">Last seen ${daysAgo}d ago</span>
@@ -381,8 +394,10 @@ const app = {
                                     ${initials}
                                 </div>
                                 <div>
-                                    <h3 class="text-sm sm:text-xl font-bold font-body text-on-background flex items-center gap-2 break-all">
-                                        ${p.originalUsername}
+                                    <h3 class="flex items-center gap-2 break-all">
+                                        <a href="https://www.chess.com/member/${p.originalUsername}" target="_blank" class="text-sm sm:text-xl font-bold font-body text-on-background hover:text-cyan-400 transition-colors duration-300 inline-block">
+                                            ${p.originalUsername}
+                                        </a>
                                         ${index === 0 ? '<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
                                     </h3>
                                     <span class="text-[10px] sm:text-xs text-on-surface-variant font-medium uppercase tracking-widest">${index === 0 ? 'Grandmaster Shard' : 'Ranked Contender'}</span>
