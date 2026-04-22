@@ -1,6 +1,7 @@
 import { store } from './store.js';
 import { fetchPlayerStats, fetchAllPlayers } from './api.js';
 import { animateValue, FLIP } from './animations.js';
+import { computeStats } from './stats.js';
 
 const app = {
     state: {
@@ -197,7 +198,10 @@ const app = {
         
         // Re-trigger animations if needed
         if(viewId === 'comparison') {
-            this.renderComparisonContent(); // triggers bar chart animation
+            this.renderComparisonContent();
+        }
+        if(viewId === 'stats') {
+            this.renderStats();
         }
     },
 
@@ -304,6 +308,7 @@ const app = {
     renderAll() {
         this.renderLeaderboard();
         if(this.state.currentView === 'comparison') this.renderComparisonContent();
+        if(this.state.currentView === 'stats') this.renderStats();
         this.renderSettings();
     },
 
@@ -320,12 +325,25 @@ const app = {
              return;
         }
 
+        // Assign rank numbers based on rating order first
+        const playersWithRank = players.map((p, index) => ({
+            ...p,
+            rank: index + 1,
+            isMia: this.isMIA(p.lastActiveDate)
+        }));
+
+        // Re-sort: active players first, MIA players at bottom (rank numbers unchanged)
+        playersWithRank.sort((a, b) => {
+            if (a.isMia === b.isMia) return a.rank - b.rank;
+            return a.isMia ? 1 : -1;
+        });
+
         let html = '';
-        players.forEach((p, index) => {
-            const isMia = this.isMIA(p.lastActiveDate);
-            const rank = (index + 1).toString().padStart(2, '0');
+        playersWithRank.forEach((p, displayIndex) => {
+            const isMia = p.isMia;
+            const rank = p.rank.toString().padStart(2, '0');
             const initials = p.originalUsername.substring(0, 2).toUpperCase();
-            const config = this.getColorAccent(index);
+            const config = this.getColorAccent(p.rank - 1);
             
             // Calculate rating change
             let ratingChange = 0;
@@ -377,8 +395,9 @@ const app = {
                 `;
             } else {
                 // Active Row styling
-                const primaryGlow = index === 0 ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_15px_rgba(129,236,255,0.6)]"></div><div class="absolute -left-20 top-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>` : '';
-                const rankClass = index === 0 ? 'text-5xl text-primary-dim' : 'text-3xl sm:text-4xl text-on-surface-variant/50';
+                const isTopRanked = p.rank === 1;
+                const primaryGlow = isTopRanked ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_15px_rgba(129,236,255,0.6)]"></div><div class="absolute -left-20 top-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>` : '';
+                const rankClass = isTopRanked ? 'text-5xl text-primary-dim' : 'text-3xl sm:text-4xl text-on-surface-variant/50';
                 
                 let avatarClass = `w-10 h-10 sm:w-14 sm:h-14 rounded-md flex items-center justify-center font-black text-lg sm:text-xl shadow-lg ${config.bg} ${config.text}`;
                 
@@ -387,7 +406,7 @@ const app = {
                         ${primaryGlow}
                         <div class="flex items-center gap-4 px-4 sm:px-6 py-5 relative z-10">
                             <div class="w-12 sm:w-16 flex justify-center">
-                                <span class="font-headline font-black leading-none ${rankClass}">${index===0?'01':rank}</span>
+                                <span class="font-headline font-black leading-none ${rankClass}">${rank}</span>
                             </div>
                             <div class="flex flex-1 items-center gap-4">
                                 <div class="${avatarClass}">
@@ -398,16 +417,16 @@ const app = {
                                         <a href="https://www.chess.com/member/${p.originalUsername}" target="_blank" class="text-sm sm:text-xl font-bold font-body text-on-background hover:text-cyan-400 transition-colors duration-300 inline-block">
                                             ${p.originalUsername}
                                         </a>
-                                        ${index === 0 ? '<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
+                                        ${isTopRanked ? '<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
                                     </h3>
-                                    <span class="text-[10px] sm:text-xs text-on-surface-variant font-medium uppercase tracking-widest">${index === 0 ? 'Grandmaster Shard' : 'Ranked Contender'}</span>
+                                    <span class="text-[10px] sm:text-xs text-on-surface-variant font-medium uppercase tracking-widest">${isTopRanked ? 'Grandmaster Shard' : 'Ranked Contender'}</span>
                                 </div>
                             </div>
                             <div class="hidden lg:block w-32 h-12 opacity-80">
                                 ${this.generateSparklineSVG(p.history, config)}
                             </div>
                             <div class="text-right min-w-[80px] sm:min-w-[140px]">
-                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-4xl font-headline font-bold ${index===0?'text-primary text-glow':'text-on-background'} leading-none tabular-nums">
+                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-4xl font-headline font-bold ${isTopRanked?'text-primary text-glow':'text-on-background'} leading-none tabular-nums">
                                     ${p.rating.toLocaleString()}
                                 </div>
                                 <div class="flex items-center justify-end gap-1 ${changeColor} font-bold text-[10px] sm:text-sm mt-1">
@@ -545,6 +564,390 @@ const app = {
         const activeCount = players.filter(p => !this.isMIA(p.lastActiveDate)).length;
         document.getElementById('settings-player-count').textContent = players.length;
         document.getElementById('settings-active-count').textContent = activeCount;
+    },
+
+    renderStats() {
+        const stats = computeStats(this.state.players, this.state.settings.miaThresholdDays);
+        const playerCount = Object.keys(this.state.players).length;
+
+        // Show data notice if fewer than 2 history points on average
+        const notice = document.getElementById('stats-data-notice');
+        if (notice) {
+            const avgHistory = playerCount > 0
+                ? Object.values(this.state.players).reduce((s, p) => s + (p.history?.length || 0), 0) / playerCount
+                : 0;
+            notice.classList.toggle('hidden', avgHistory >= 3);
+        }
+
+        this.renderAwards(stats.awards);
+        this.renderWeeklyElo(stats.weeklyElo);
+        this.renderVolatility(stats.volatility);
+        this.renderDetailedStats(stats);
+        this.renderRecordStats(stats);
+    },
+
+    renderAwards(awards) {
+        const grid = document.getElementById('stats-awards-grid');
+        if (!grid) return;
+
+        if (awards.length === 0) {
+            grid.innerHTML = `
+                <div class="sm:col-span-2 lg:col-span-3 stats-no-data">
+                    <span class="material-symbols-outlined">emoji_events</span>
+                    <p class="text-sm font-bold">No awards yet</p>
+                    <p class="text-xs">Sync your players a few times to unlock awards</p>
+                </div>`;
+            return;
+        }
+
+        const colorMap = {
+            primary: { icon: 'text-primary', glow: 'text-glow' },
+            error: { icon: 'text-error', glow: '' },
+            secondary: { icon: 'text-secondary', glow: '' },
+            tertiary: { icon: 'text-tertiary', glow: '' }
+        };
+
+        grid.innerHTML = awards.map(a => {
+            const colors = colorMap[a.color] || colorMap.primary;
+            return `
+                <div class="stat-award-card accent-${a.color}">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="material-symbols-outlined ${colors.icon} text-2xl" style="font-variation-settings: 'FILL' 1;">${a.icon}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">${a.title}</span>
+                    </div>
+                    <div class="font-headline text-xl font-bold text-on-background ${colors.glow} truncate">${a.winner}</div>
+                    <div class="text-xs font-bold ${colors.icon} mt-1 tracking-wide">${a.value}</div>
+                </div>`;
+        }).join('');
+    },
+
+    renderWeeklyElo(weeklyElo) {
+        const container = document.getElementById('stats-weekly-section');
+        if (!container) return;
+
+        if (weeklyElo.all.length === 0) {
+            container.innerHTML = `
+                <div class="lg:col-span-2 stats-no-data">
+                    <span class="material-symbols-outlined">calendar_today</span>
+                    <p class="text-sm font-bold">No weekly data available</p>
+                    <p class="text-xs">Need at least 2 syncs within the last 7 days</p>
+                </div>`;
+            return;
+        }
+
+        // Gainers column
+        const gainersHtml = weeklyElo.gainers.length > 0
+            ? weeklyElo.gainers.map((g, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${g.name}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-primary font-bold text-sm">
+                        <span class="material-symbols-outlined text-sm">trending_up</span>
+                        +${g.change}
+                    </div>
+                </div>`).join('')
+            : '<div class="stats-table-row"><span class="text-on-surface-variant text-sm">No gainers this week</span></div>';
+
+        // Losers column
+        const losersHtml = weeklyElo.losers.length > 0
+            ? weeklyElo.losers.map((l, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${l.name}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-error font-bold text-sm">
+                        <span class="material-symbols-outlined text-sm">trending_down</span>
+                        ${l.change}
+                    </div>
+                </div>`).join('')
+            : '<div class="stats-table-row"><span class="text-on-surface-variant text-sm">No losers this week</span></div>';
+
+        container.innerHTML = `
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-primary text-lg">arrow_upward</span>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-primary">Top Gainers</h4>
+                </div>
+                <div class="space-y-2">${gainersHtml}</div>
+            </div>
+            <div class="glass-card rounded-xl p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-error text-lg">arrow_downward</span>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-error">Biggest Drops</h4>
+                </div>
+                <div class="space-y-2">${losersHtml}</div>
+            </div>`;
+    },
+
+    renderVolatility(volatility) {
+        const container = document.getElementById('stats-volatility-section');
+        if (!container) return;
+
+        if (!volatility.all || volatility.all.length === 0) {
+            container.innerHTML = `
+                <div class="stats-no-data">
+                    <span class="material-symbols-outlined">show_chart</span>
+                    <p class="text-sm font-bold">Not enough data for volatility</p>
+                    <p class="text-xs">Need at least 3 history points within the last 30 days</p>
+                </div>`;
+            return;
+        }
+
+        const maxStdDev = Math.max(...volatility.all.map(v => v.stdDev), 1);
+
+        const rows = volatility.all.map((v, i) => {
+            const barWidth = Math.max((v.stdDev / maxStdDev) * 100, 4);
+            let pillClass = 'flat';
+            if (v.stdDev > maxStdDev * 0.6) pillClass = 'wild';
+            else if (v.stdDev > maxStdDev * 0.3) pillClass = 'moderate';
+
+            const isWildest = i === 0;
+            const isFlattest = i === volatility.all.length - 1 && volatility.all.length > 1;
+            let badge = '';
+            if (isWildest) badge = '<span class="text-[9px] bg-tertiary/15 text-tertiary px-2 py-0.5 rounded-full font-bold uppercase">Wildest</span>';
+            if (isFlattest) badge = '<span class="text-[9px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold uppercase">Flattest</span>';
+
+            return `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${v.name}</span>
+                        ${badge}
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="hidden sm:block w-32 h-2 bg-surface-container-lowest rounded-full overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-700" style="width: ${barWidth}%; background: ${pillClass === 'wild' ? '#ff6c95' : pillClass === 'moderate' ? '#a68cff' : '#81ecff'};"></div>
+                        </div>
+                        <span class="volatility-pill ${pillClass}">σ ${v.stdDev}</span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="glass-card rounded-xl p-6">
+                <div class="space-y-2">${rows}</div>
+            </div>`;
+    },
+
+    renderDetailedStats(stats) {
+        const container = document.getElementById('stats-details-section');
+        if (!container) return;
+
+        let html = '';
+
+        // Tilt Tracker
+        if (stats.tiltTracker.all.length > 0) {
+            const rows = stats.tiltTracker.all.slice(0, 5).map((t, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${t.name}</span>
+                    </div>
+                    <span class="text-error font-bold text-sm">${t.drop}</span>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">mood_bad</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Tilt Tracker (Worst Single Drop)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // Comeback Kid
+        if (stats.comebackKid.all.length > 0) {
+            const rows = stats.comebackKid.all.slice(0, 5).map((c, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${c.name}</span>
+                    </div>
+                    <span class="text-primary font-bold text-sm">+${c.recovery}</span>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Comeback Kid (Max Recovery)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // Trendsetter
+        if (stats.trendsetter.all.length > 0) {
+            const rows = stats.trendsetter.all.slice(0, 5).map((t, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${t.name}</span>
+                    </div>
+                    <span class="text-primary font-bold text-sm">${t.streak} syncs</span>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Trendsetter (Longest Gain Streak)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // Distance From Peak
+        if (stats.distanceFromPeak.all.length > 0) {
+            const rows = stats.distanceFromPeak.all.slice(0, 5).map((d, i) => {
+                const atPeak = d.distance === 0;
+                return `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${d.name}</span>
+                        ${atPeak ? '<span class="text-[9px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold uppercase">At Peak!</span>' : ''}
+                    </div>
+                    <div class="text-right">
+                        <span class="font-headline font-bold text-sm ${atPeak ? 'text-primary' : 'text-on-surface-variant'}">${atPeak ? d.peak : '-' + d.distance}</span>
+                        <span class="text-[10px] text-outline block">peak: ${d.peak}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Distance From Peak</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // Milestone Watch
+        if (stats.milestoneWatch.all.length > 0) {
+            const rows = stats.milestoneWatch.all.slice(0, 5).map((m, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${m.name}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-headline font-bold text-sm text-tertiary">${m.distance} pts</span>
+                        <span class="text-[10px] text-outline block">${m.rating} → ${m.target}</span>
+                    </div>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">flag</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Milestone Watch (Next 100)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        if (html === '') {
+            html = `
+                <div class="lg:col-span-2 stats-no-data">
+                    <span class="material-symbols-outlined">analytics</span>
+                    <p class="text-sm font-bold">No detailed stats available</p>
+                    <p class="text-xs">Sync a few more times to generate breakdowns</p>
+                </div>`;
+        }
+
+        container.innerHTML = html;
+    },
+
+    renderRecordStats(stats) {
+        const container = document.getElementById('stats-records-section');
+        if (!container) return;
+
+        const hasRecordData = stats.grinder.all.length > 0;
+
+        if (!hasRecordData) {
+            container.innerHTML = `
+                <div class="lg:col-span-3 stats-no-data">
+                    <span class="material-symbols-outlined">sports_esports</span>
+                    <p class="text-sm font-bold">No game record data</p>
+                    <p class="text-xs">Sync players to load win/loss/draw records from Chess.com</p>
+                </div>`;
+            return;
+        }
+
+        let html = '';
+
+        // The Grinder
+        if (stats.grinder.all.length > 0) {
+            const rows = stats.grinder.all.slice(0, 5).map((g, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${g.name}</span>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="font-headline font-bold text-sm text-secondary">${g.total.toLocaleString()}</span>
+                        <span class="text-[10px] text-outline block">${g.wins}W / ${g.losses}L / ${g.draws}D</span>
+                    </div>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">sports_mma</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">The Grinder (Most Games)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // Pacifist
+        if (stats.pacifist.all.length > 0) {
+            const rows = stats.pacifist.all.slice(0, 5).map((p, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${p.name}</span>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="font-headline font-bold text-sm text-primary">${p.drawRate.toFixed(1)}%</span>
+                        <span class="text-[10px] text-outline block">${p.draws} draws / ${p.total}</span>
+                    </div>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">handshake</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">The Pacifist (Draw Rate)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        // All-or-Nothing
+        if (stats.allOrNothing.all.length > 0) {
+            const rows = stats.allOrNothing.all.slice(0, 5).map((a, i) => `
+                <div class="stats-table-row">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
+                        <span class="font-bold text-on-background text-sm truncate">${a.name}</span>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="font-headline font-bold text-sm text-tertiary">${a.decisiveRate.toFixed(1)}%</span>
+                        <span class="text-[10px] text-outline block">decisive</span>
+                    </div>
+                </div>`).join('');
+            html += `
+                <div class="glass-card rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">All-or-Nothing (Lowest Draw Rate)</h4>
+                    </div>
+                    <div class="space-y-2">${rows}</div>
+                </div>`;
+        }
+
+        container.innerHTML = html;
     }
 };
 

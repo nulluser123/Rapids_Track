@@ -90,6 +90,7 @@
             <div class="hidden md:flex items-center gap-4 lg:gap-6 nav-links-top">
                 <a href="#leaderboard" data-view="leaderboard" class="nav-btn-top active font-['Space_Grotesk'] tracking-tight">Leaderboard</a>
                 <a href="#comparison" data-view="comparison" class="nav-btn-top font-['Space_Grotesk'] tracking-tight">Comparison</a>
+                <a href="#stats" data-view="stats" class="nav-btn-top font-['Space_Grotesk'] tracking-tight">Stats</a>
                 <a href="#settings" data-view="settings" class="nav-btn-top font-['Space_Grotesk'] tracking-tight">Settings</a>
             </div>
         </div>
@@ -319,6 +320,83 @@
             </footer>
         </div>
 
+        <!-- View: Stats -->
+        <div id="view-stats" class="view hidden">
+            <!-- Header Section -->
+            <header class="mb-12">
+                <div class="flex items-center gap-3 mb-2">
+                    <h2 class="text-4xl sm:text-5xl font-headline font-bold tracking-tight text-on-background">Shard Intelligence</h2>
+                    <span class="bg-secondary/20 text-secondary px-3 py-0.5 rounded-full text-xs font-bold tracking-widest uppercase">Report</span>
+                </div>
+                <p class="text-on-surface-variant font-medium tracking-wide">Deep analytics on your tracked players — powered by sync history</p>
+                <p id="stats-data-notice" class="text-xs text-outline mt-2 hidden">
+                    <span class="material-symbols-outlined text-xs align-middle">info</span>
+                    Some stats require multiple syncs to compute. Keep syncing to unlock more insights.
+                </p>
+            </header>
+
+            <!-- Awards Grid (Spotify Wrapped style) -->
+            <section class="mb-16">
+                <div class="stats-section-header">
+                    <span class="material-symbols-outlined text-secondary">emoji_events</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Awards &amp; Superlatives</h3>
+                </div>
+                <div id="stats-awards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- JS injects award cards -->
+                </div>
+            </section>
+
+            <!-- Weekly Elo Section -->
+            <section class="mb-16">
+                <div class="stats-section-header">
+                    <span class="material-symbols-outlined text-primary">calendar_today</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Weekly Elo Gain / Loss (Rolling 7 Days)</h3>
+                </div>
+                <div id="stats-weekly-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- JS injects weekly tables -->
+                </div>
+            </section>
+
+            <!-- Volatility Section -->
+            <section class="mb-16">
+                <div class="stats-section-header">
+                    <span class="material-symbols-outlined text-tertiary">show_chart</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">30-Day Volatility Index</h3>
+                </div>
+                <div id="stats-volatility-section">
+                    <!-- JS injects volatility rankings -->
+                </div>
+            </section>
+
+            <!-- Detailed Stats Section -->
+            <section class="mb-16">
+                <div class="stats-section-header">
+                    <span class="material-symbols-outlined text-secondary">analytics</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Detailed Breakdowns</h3>
+                </div>
+                <div id="stats-details-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- JS injects detailed stat cards -->
+                </div>
+            </section>
+
+            <!-- Game Records Section -->
+            <section class="mb-16">
+                <div class="stats-section-header">
+                    <span class="material-symbols-outlined text-primary">sports_esports</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Game Records</h3>
+                </div>
+                <div id="stats-records-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- JS injects record stats -->
+                </div>
+            </section>
+
+            <footer class="mt-12 flex justify-between items-center px-4 py-6 border-t border-outline-variant/10">
+                <div class="text-xs text-on-surface-variant font-medium uppercase tracking-widest hidden sm:block">
+                    Intelligence Report Generated
+                </div>
+            </footer>
+        </div>
+
     </main>
 
     <!-- Floating Add Player Button -->
@@ -336,6 +414,10 @@
             <a href="#comparison" data-view="comparison" class="nav-btn-mobile flex flex-col items-center gap-1 text-slate-400">
                 <span class="material-symbols-outlined nav-icon" style="font-variation-settings: 'FILL' 0;">bar_chart</span>
                 <span class="text-[10px] font-bold">Comparison</span>
+            </a>
+            <a href="#stats" data-view="stats" class="nav-btn-mobile flex flex-col items-center gap-1 text-slate-400">
+                <span class="material-symbols-outlined nav-icon" style="font-variation-settings: 'FILL' 0;">query_stats</span>
+                <span class="text-[10px] font-bold">Stats</span>
             </a>
             <a href="#settings" data-view="settings" class="nav-btn-mobile flex flex-col items-center gap-1 text-slate-400">
                 <span class="material-symbols-outlined nav-icon" style="font-variation-settings: 'FILL' 0;">settings</span>

@@ -10,6 +10,10 @@ const defaultSettings = {
 // {
 //   username: {
 //      rating: 1200,
+//      peakRating: 1450,
+//      wins: 120,
+//      losses: 85,
+//      draws: 14,
 //      lastActiveDate: unix_timestamp,
 //      history: [{ date: timestamp, rating: 1200 }, ...]
 //   }
@@ -42,10 +46,16 @@ export const store = {
         const rapidStats = initialStats.chess_rapid || {};
         const rating = rapidStats.last ? rapidStats.last.rating : 0;
         const lastActiveDate = rapidStats.last ? rapidStats.last.date : (Date.now()/1000);
+        const peakRating = rapidStats.best ? rapidStats.best.rating : rating;
+        const record = rapidStats.record || {};
 
         players[lowerUsername] = {
             originalUsername: username,
             rating: rating,
+            peakRating: peakRating,
+            wins: record.win || 0,
+            losses: record.loss || 0,
+            draws: record.draw || 0,
             lastActiveDate: lastActiveDate,
             history: [{ date: Date.now(), rating: rating }]
         };
@@ -71,11 +81,17 @@ export const store = {
                 const rapidStats = stats.chess_rapid || {};
                 const newRating = rapidStats.last ? rapidStats.last.rating : players[lowerUsername].rating;
                 const newDate = rapidStats.last ? rapidStats.last.date : players[lowerUsername].lastActiveDate;
+                const newPeak = rapidStats.best ? rapidStats.best.rating : players[lowerUsername].peakRating;
+                const record = rapidStats.record || {};
                 
                 // Only push to history if sync happens, we can just push current status
                 players[lowerUsername].history.push({ date: now, rating: newRating });
                 players[lowerUsername].rating = newRating;
                 players[lowerUsername].lastActiveDate = newDate;
+                players[lowerUsername].peakRating = newPeak || players[lowerUsername].rating;
+                players[lowerUsername].wins = record.win ?? players[lowerUsername].wins ?? 0;
+                players[lowerUsername].losses = record.loss ?? players[lowerUsername].losses ?? 0;
+                players[lowerUsername].draws = record.draw ?? players[lowerUsername].draws ?? 0;
                 
                 // Keep history trimmed to say, last 50 data points to avoid blowing up storage
                 if (players[lowerUsername].history.length > 50) {
