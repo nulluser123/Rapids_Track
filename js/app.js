@@ -6,6 +6,7 @@ import { computeStats } from './stats.js';
 const app = {
     state: {
         currentView: 'leaderboard',
+        currentMode: 'rapid',  // 'rapid' | 'blitz' | 'bullet'
         settings: store.getSettings(),
         players: store.getPlayers(),
         isSyncing: false
@@ -16,6 +17,7 @@ const app = {
         this.renderAll();
         // Set initial view
         this.switchView('leaderboard');
+        this.updateModeToggleUI();
     },
 
     bindEvents() {
@@ -27,6 +29,20 @@ const app = {
                 e.preventDefault();
                 const view = link.getAttribute('data-view');
                 this.switchView(view);
+            });
+        });
+
+        // Mode Toggle (Time Control Selector)
+        const modeButtons = document.querySelectorAll('[data-mode]');
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const mode = btn.getAttribute('data-mode');
+                if (mode !== this.state.currentMode) {
+                    this.state.currentMode = mode;
+                    this.updateModeToggleUI();
+                    this.renderAll();
+                }
             });
         });
 
@@ -78,7 +94,7 @@ const app = {
 
             const stats = await fetchPlayerStats(username);
             
-            if (stats && stats.chess_rapid) {
+            if (stats && (stats.chess_rapid || stats.chess_blitz || stats.chess_bullet)) {
                 const added = store.addPlayer(stats.name || username, stats);
                 if (added) {
                     this.state.players = store.getPlayers();
@@ -89,7 +105,7 @@ const app = {
                     addError.classList.remove('hidden');
                 }
             } else {
-                addError.textContent = 'Player not found or no rapid stats available.';
+                addError.textContent = 'Player not found or no rated stats available.';
                 addError.classList.remove('hidden');
             }
 
@@ -146,6 +162,49 @@ const app = {
                 this.renderAll();
             }
         });
+    },
+
+    updateModeToggleUI() {
+        const mode = this.state.currentMode;
+        // Update all toggle buttons (desktop + mobile instances)
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+            const isActive = btn.getAttribute('data-mode') === mode;
+            btn.classList.toggle('mode-active', isActive);
+            btn.classList.toggle('mode-inactive', !isActive);
+        });
+
+        // Update the mode badge text
+        const badges = document.querySelectorAll('.mode-badge-text');
+        const labels = { rapid: 'Rapid', blitz: 'Blitz', bullet: 'Bullet' };
+        badges.forEach(b => b.textContent = labels[mode] || 'Rapid');
+    },
+
+    /**
+     * Flatten multi-mode player data into the shape the renderers expect,
+     * based on the currently selected time-control mode.
+     */
+    getModePlayers() {
+        const mode = this.state.currentMode;
+        const raw = this.state.players;
+        const flattened = {};
+
+        for (const [key, player] of Object.entries(raw)) {
+            const bucket = player[mode];
+            if (!bucket) continue;
+
+            flattened[key] = {
+                originalUsername: player.originalUsername,
+                rating: bucket.rating ?? 0,
+                peakRating: bucket.peakRating ?? 0,
+                wins: bucket.wins ?? 0,
+                losses: bucket.losses ?? 0,
+                draws: bucket.draws ?? 0,
+                lastActiveDate: bucket.lastActiveDate ?? (Date.now() / 1000),
+                history: bucket.history ?? []
+            };
+        }
+
+        return flattened;
     },
 
     switchView(viewId) {
@@ -219,10 +278,13 @@ const app = {
         
         const results = await fetchAllPlayers(usernames);
         
+        // Capture old ratings for the current mode (for animations)
+        const mode = this.state.currentMode;
         const oldRatings = {};
         usernames.forEach(u => {
              const key = u.toLowerCase();
-             oldRatings[key] = this.state.players[key].rating;
+             const bucket = this.state.players[key]?.[mode];
+             oldRatings[key] = bucket ? bucket.rating : 0;
         });
 
         // Update store
@@ -238,11 +300,12 @@ const app = {
         
         flip.play();
 
-        // Animate numbers for changed ratings
+        // Animate numbers for changed ratings (current mode only)
+        const modePlayers = this.getModePlayers();
         usernames.forEach(u => {
             const key = u.toLowerCase();
             const oldRating = oldRatings[key];
-            const newRating = this.state.players[key].rating;
+            const newRating = modePlayers[key]?.rating ?? 0;
             if(oldRating !== newRating) {
                 const el = document.getElementById(`rating-val-${key}`);
                 if(el) animateValue(el, oldRating, newRating, 1000);
@@ -261,7 +324,8 @@ const app = {
     },
 
     getSortedPlayers() {
-        let players = Object.values(this.state.players).sort((a, b) => b.rating - a.rating);
+        const modePlayers = this.getModePlayers();
+        let players = Object.values(modePlayers).sort((a, b) => b.rating - a.rating);
         if (this.state.searchTerm) {
             players = players.filter(p => p.originalUsername.toLowerCase().includes(this.state.searchTerm));
         }
@@ -567,14 +631,15 @@ const app = {
     },
 
     renderStats() {
-        const stats = computeStats(this.state.players, this.state.settings.miaThresholdDays);
-        const playerCount = Object.keys(this.state.players).length;
+        const modePlayers = this.getModePlayers();
+        const stats = computeStats(modePlayers, this.state.settings.miaThresholdDays);
+        const playerCount = Object.keys(modePlayers).length;
 
         // Show data notice if fewer than 2 history points on average
         const notice = document.getElementById('stats-data-notice');
         if (notice) {
             const avgHistory = playerCount > 0
-                ? Object.values(this.state.players).reduce((s, p) => s + (p.history?.length || 0), 0) / playerCount
+                ? Object.values(modePlayers).reduce((s, p) => s + (p.history?.length || 0), 0) / playerCount
                 : 0;
             notice.classList.toggle('hidden', avgHistory >= 3);
         }

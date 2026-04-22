@@ -22,7 +22,11 @@ export const fetchAllPlayers = async (usernames) => {
         const batchResults = await Promise.all(
             batch.map(async (username) => {
                 const stats = await fetchPlayerStats(username);
-                return stats && stats.chess_rapid ? { username, stats } : null;
+                // Accept any player with at least one time-control populated
+                if (stats && (stats.chess_rapid || stats.chess_blitz || stats.chess_bullet)) {
+                    return { username, stats };
+                }
+                return null;
             })
         );
         
