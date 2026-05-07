@@ -61,15 +61,18 @@ function buildBucketFromApiStats(apiStats) {
     const lastActiveDate = apiStats.last ? apiStats.last.date : (Date.now() / 1000);
     const peakRating = apiStats.best ? apiStats.best.rating : rating;
     const record = apiStats.record || {};
+    const wins = record.win || 0;
+    const losses = record.loss || 0;
+    const draws = record.draw || 0;
 
     return {
         rating,
         peakRating,
-        wins: record.win || 0,
-        losses: record.loss || 0,
-        draws: record.draw || 0,
+        wins,
+        losses,
+        draws,
         lastActiveDate,
-        history: [{ date: Date.now(), rating }]
+        history: [{ date: Date.now(), rating, total: wins + losses + draws }]
     };
 }
 
@@ -164,14 +167,18 @@ export const store = {
                 const newDate = modeStats.last ? modeStats.last.date : bucket.lastActiveDate;
                 const newPeak = modeStats.best ? modeStats.best.rating : bucket.peakRating;
                 const record = modeStats.record || {};
+                const newWins = record.win ?? bucket.wins ?? 0;
+                const newLosses = record.loss ?? bucket.losses ?? 0;
+                const newDraws = record.draw ?? bucket.draws ?? 0;
+                const newTotal = newWins + newLosses + newDraws;
                 
-                bucket.history.push({ date: now, rating: newRating });
+                bucket.history.push({ date: now, rating: newRating, total: newTotal });
                 bucket.rating = newRating;
                 bucket.lastActiveDate = newDate;
                 bucket.peakRating = newPeak || bucket.rating;
-                bucket.wins = record.win ?? bucket.wins ?? 0;
-                bucket.losses = record.loss ?? bucket.losses ?? 0;
-                bucket.draws = record.draw ?? bucket.draws ?? 0;
+                bucket.wins = newWins;
+                bucket.losses = newLosses;
+                bucket.draws = newDraws;
                 
                 // Keep history trimmed to last 50 data points
                 if (bucket.history.length > 50) {

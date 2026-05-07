@@ -415,6 +415,17 @@ const app = {
                  ratingChange = p.rating - p.history[p.history.length - 2].rating;
             }
 
+            // Calculate games played between the last two syncs
+            let gamesPlayed = 0;
+            if (p.history && p.history.length > 1) {
+                const prevTotal = p.history[p.history.length - 2].total;
+                const currTotal = p.history[p.history.length - 1].total;
+                if (prevTotal != null && currTotal != null) {
+                    gamesPlayed = Math.max(0, currTotal - prevTotal);
+                }
+            }
+            const gamesLabel = gamesPlayed > 0 ? `${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'}` : null;
+
             const changeText = isMia ? '0.0' : (ratingChange === 0 ? '0.0' : (ratingChange > 0 ? `+${ratingChange}` : ratingChange));
             const changeColor = ratingChange > 0 ? 'text-primary' : (ratingChange < 0 ? 'text-error' : 'text-on-surface-variant');
             const changeIcon = ratingChange > 0 ? 'trending_up' : (ratingChange < 0 ? 'trending_down' : 'remove');
@@ -497,6 +508,7 @@ const app = {
                                     <span class="material-symbols-outlined text-[10px] sm:text-sm">${changeIcon}</span>
                                     ${changeText}
                                 </div>
+                                ${gamesLabel ? `<div class="flex items-center justify-end gap-1 mt-0.5"><span class="text-[9px] sm:text-[10px] text-on-surface-variant/60 font-medium tracking-wide">${gamesLabel}</span></div>` : ''}
                             </div>
                         </div>
                     </div>
