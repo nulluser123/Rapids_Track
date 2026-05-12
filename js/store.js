@@ -1,4 +1,5 @@
 const STORAGE_KEY_PLAYERS = "rapidTracker_players";
+const STORAGE_KEY_DUEL    = "rapidTracker_duel";
 const STORAGE_KEY_SETTINGS = "rapidTracker_settings";
 
 const TIME_CONTROLS = ['rapid', 'blitz', 'bullet'];
@@ -229,5 +230,14 @@ export const store = {
             console.error("Invalid import JSON", e);
             return false;
         }
+    },
+
+    getDuelSelection() {
+        const data = localStorage.getItem(STORAGE_KEY_DUEL);
+        return data ? JSON.parse(data) : { playerA: null, playerB: null };
+    },
+
+    saveDuelSelection(playerA, playerB) {
+        localStorage.setItem(STORAGE_KEY_DUEL, JSON.stringify({ playerA, playerB }));
     }
 };

@@ -9,7 +9,9 @@ const app = {
         currentMode: 'rapid',  // 'rapid' | 'blitz' | 'bullet'
         settings: store.getSettings(),
         players: store.getPlayers(),
-        isSyncing: false
+        isSyncing: false,
+        duelPlayerA: store.getDuelSelection().playerA,
+        duelPlayerB: store.getDuelSelection().playerB
     },
     
     init() {
@@ -256,8 +258,9 @@ const app = {
         }
         
         // Re-trigger animations if needed
-        if(viewId === 'comparison') {
-            this.renderComparisonContent();
+        if(viewId === 'duel') {
+            this.renderDuelSelectors();
+            this.renderDuel();
         }
         if(viewId === 'stats') {
             this.renderStats();
@@ -315,6 +318,11 @@ const app = {
         if(syncText) syncText.textContent = "Sync: 100%";
         if(syncIcon) syncIcon.classList.replace('bg-secondary', 'bg-primary');
         this.state.isSyncing = false;
+
+        // If duel view is active, re-render duel with fresh data
+        if (this.state.currentView === 'duel') {
+            this.renderDuel();
+        }
     },
 
     isMIA(lastActiveUnix) {
@@ -371,7 +379,10 @@ const app = {
 
     renderAll() {
         this.renderLeaderboard();
-        if(this.state.currentView === 'comparison') this.renderComparisonContent();
+        if(this.state.currentView === 'duel') {
+            this.renderDuelSelectors();
+            this.renderDuel();
+        }
         if(this.state.currentView === 'stats') this.renderStats();
         this.renderSettings();
     },
@@ -519,111 +530,303 @@ const app = {
         grid.innerHTML = html;
     },
 
-    renderComparisonContent() {
-        const players = this.getSortedPlayers();
-        const activePlayers = players.filter(p => !this.isMIA(p.lastActiveDate));
-        const chartData = [];
-        
-        let avgChange = 0;
-        let topGainer = { name: '...', change: 0 };
-        let biggestDrop = { name: '...', change: 0 };
-        
-        activePlayers.forEach((p, index) => {
-            let change = 0;
-            if (p.history && p.history.length > 1) {
-                 change = p.rating - p.history[p.history.length - 2].rating;
-            }
-            
-            if (index < 8) { // Top 8 active
-                chartData.push({ p, change, config: this.getColorAccent(index) });
-            }
+    // ─────────────────────────────────────────────
+    // Duel Page
+    // ─────────────────────────────────────────────
 
-            avgChange += change;
-            if (topGainer.change === 0 || change > topGainer.change) topGainer = { name: p.originalUsername, change };
-            if (biggestDrop.change === 0 || change < biggestDrop.change) biggestDrop = { name: p.originalUsername, change };
-        });
+    /**
+     * Populate both <select> dropdowns with current tracked players.
+     * Restores saved selections if players still exist.
+     */
+    renderDuelSelectors() {
+        const selectA = document.getElementById('duel-select-a');
+        const selectB = document.getElementById('duel-select-b');
+        if (!selectA || !selectB) return;
 
-        if (activePlayers.length > 0) avgChange /= activePlayers.length;
-        
-        document.getElementById('avg-rating-change').textContent = (avgChange > 0 ? '+' : '') + avgChange.toFixed(1);
-        document.getElementById('avg-rating-icon').textContent = avgChange >= 0 ? 'trending_up' : 'trending_down';
-        document.getElementById('stat-top-gainer').textContent = `${topGainer.name} (+${topGainer.change})`;
-        document.getElementById('stat-biggest-drop').textContent = `${biggestDrop.name} (${biggestDrop.change})`;
+        const players = Object.values(this.getModePlayers())
+            .sort((a, b) => b.rating - a.rating);
 
-        // Render Chart
-        const chartContainer = document.getElementById('chart-container');
-        if(chartContainer) {
-            const maxRating = Math.max(...chartData.map(d => d.p.rating), 1);
-            const minRating = Math.max(Math.min(...chartData.map(d => d.p.rating), 1) - 30, 0); // Increased contrast zoom
-            const range = maxRating - minRating;
+        // Build options HTML
+        const optionsHtml = players.map(p =>
+            `<option value="${p.originalUsername.toLowerCase()}">${p.originalUsername} (${p.rating})</option>`
+        ).join('');
 
-            let chartHtml = `
-                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 py-2 z-0">
-                    <div class="border-t border-on-surface-variant w-full flex items-center"><span class="absolute -left-2 text-[8px] text-on-surface-variant font-bold -translate-y-1/2 bg-surface-container px-1 rounded transform -rotate-90 origin-left">MAX</span></div>
-                    <div class="border-t border-outline-variant w-full border-dashed"></div>
-                    <div class="border-t border-outline-variant w-full border-dashed"></div>
-                    <div class="border-t border-on-surface-variant w-full flex items-center"><span class="absolute -left-2 text-[8px] text-on-surface-variant font-bold -translate-y-1/2 bg-surface-container px-1 rounded transform -rotate-90 origin-left">MIN</span></div>
-                </div>`;
+        const blank = '<option value="">-- Select Player --</option>';
+        selectA.innerHTML = blank + optionsHtml;
+        selectB.innerHTML = blank + optionsHtml;
 
-            chartData.forEach((d, i) => {
-                const heightPct = Math.max(((d.p.rating - minRating) / range) * 95, 5); 
-                const changeIcon = d.change > 0 ? '▲' : (d.change < 0 ? '▼' : 'Δ');
-                const changeStr = d.change > 0 ? `+${d.change}` : d.change;
-                const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
-                const nameStr = d.p.originalUsername.substring(0, 8);
-
-                chartHtml += `
-                <div class="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer z-10" title="Rating: ${d.p.rating.toLocaleString()} | Change: ${changeStr}">
-                    <div class="absolute -top-12 opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 bg-surface-container-highest border border-primary/20 shadow-xl rounded-lg px-4 py-2 pointer-events-none flex flex-col items-center z-50">
-                        <span class="font-headline font-bold text-lg text-primary text-glow">${d.p.rating.toLocaleString()}</span>
-                        <span class="text-[10px] font-bold ${changeColor} tracking-widest">${changeStr} ${changeIcon}</span>
-                    </div>
-                    
-                    <div class="w-full max-w-[56px] bg-primary group-hover:bg-primary-container rounded-t-lg bar-grow-up transform transition-all duration-300 group-hover:scale-x-110 shadow-[0_0_15px_rgba(129,236,255,0.15)] group-hover:shadow-[0_0_30px_rgba(0,227,253,0.5)] border-t border-primary-container" style="height: 0%;" data-height="${heightPct}%"></div>
-                    
-                    <span class="mt-4 text-[10px] sm:text-xs font-bold text-on-surface-variant group-hover:text-primary group-hover:scale-110 uppercase tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap w-full text-center transition-all duration-300">${nameStr}</span>
-                </div>`;
-            });
-
-            chartContainer.innerHTML = chartHtml;
-            
-            // Trigger animation reliably after DOM paints
-            setTimeout(() => {
-                requestAnimationFrame(() => {
-                    chartContainer.querySelectorAll('.bar-grow-up').forEach(bar => {
-                        bar.style.height = bar.dataset.height;
-                    });
-                });
-            }, 50);
+        // Restore saved selections (if player still tracked)
+        const keys = players.map(p => p.originalUsername.toLowerCase());
+        if (this.state.duelPlayerA && keys.includes(this.state.duelPlayerA)) {
+            selectA.value = this.state.duelPlayerA;
+        }
+        if (this.state.duelPlayerB && keys.includes(this.state.duelPlayerB)) {
+            selectB.value = this.state.duelPlayerB;
         }
 
-        // Render List (Active only)
-        const listContainer = document.getElementById('comparison-list');
-        if(listContainer) {
-            let listHtml = '';
-            chartData.forEach((d, i) => {
-                const changeIcon = d.change > 0 ? '▲' : (d.change < 0 ? '▼' : 'Δ');
-                const changeStr = d.change > 0 ? `+${d.change} ${changeIcon}` : `${d.change} ${changeIcon}`;
-                const changeColor = d.change >= 0 ? 'text-primary' : 'text-error';
-                
-                listHtml += `
-                <div class="bg-surface-container-high hover:bg-surface-container-highest transition-all p-4 sm:p-5 rounded-lg flex items-center justify-between group cursor-pointer border border-transparent hover:border-primary/20">
-                    <div class="flex items-center gap-4 overflow-hidden">
-                        <div class="w-10 h-10 shrink-0 rounded bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-white/5 group-hover:shadow-[0_0_15px_rgba(129,236,255,0.3)] transition-all">
-                            <span class="material-symbols-outlined text-primary text-xl">person</span>
-                        </div>
-                        <div class="truncate">
-                            <p class="font-bold text-on-background group-hover:text-primary transition-colors truncate">${d.p.originalUsername}</p>
-                            <p class="text-[10px] text-on-surface-variant uppercase font-medium truncate">Rank #${i+1} Active</p>
-                        </div>
+        // Bind change events (safe: remove old listeners by replacing elements)
+        const newSelectA = selectA.cloneNode(true);
+        const newSelectB = selectB.cloneNode(true);
+        selectA.parentNode.replaceChild(newSelectA, selectA);
+        selectB.parentNode.replaceChild(newSelectB, selectB);
+
+        // Restore values after clone
+        if (this.state.duelPlayerA && keys.includes(this.state.duelPlayerA)) {
+            newSelectA.value = this.state.duelPlayerA;
+        }
+        if (this.state.duelPlayerB && keys.includes(this.state.duelPlayerB)) {
+            newSelectB.value = this.state.duelPlayerB;
+        }
+
+        newSelectA.addEventListener('change', (e) => {
+            this.state.duelPlayerA = e.target.value || null;
+            store.saveDuelSelection(this.state.duelPlayerA, this.state.duelPlayerB);
+            this.renderDuel();
+        });
+        newSelectB.addEventListener('change', (e) => {
+            this.state.duelPlayerB = e.target.value || null;
+            store.saveDuelSelection(this.state.duelPlayerA, this.state.duelPlayerB);
+            this.renderDuel();
+        });
+    },
+
+    /**
+     * Render the duel stats grid for the two selected players.
+     */
+    renderDuel() {
+        const grid = document.getElementById('duel-stats-grid');
+        if (!grid) return;
+
+        const keyA = this.state.duelPlayerA;
+        const keyB = this.state.duelPlayerB;
+        const modePlayers = this.getModePlayers();
+
+        // Empty / incomplete selection states
+        if (!keyA && !keyB) {
+            grid.innerHTML = `
+                <div class="duel-empty">
+                    <span class="material-symbols-outlined">swords</span>
+                    <p class="text-sm font-bold text-on-surface-variant">Select two players above to begin the duel</p>
+                </div>`;
+            return;
+        }
+        if (!keyA || !keyB) {
+            grid.innerHTML = `
+                <div class="duel-empty">
+                    <span class="material-symbols-outlined">person_search</span>
+                    <p class="text-sm font-bold text-on-surface-variant">Select the ${!keyA ? 'first' : 'second'} player to continue</p>
+                </div>`;
+            return;
+        }
+        if (keyA === keyB) {
+            grid.innerHTML = `
+                <div class="duel-empty">
+                    <span class="material-symbols-outlined">warning</span>
+                    <p class="text-sm font-bold text-on-surface-variant">Pick two different players</p>
+                </div>`;
+            return;
+        }
+
+        const pA = modePlayers[keyA];
+        const pB = modePlayers[keyB];
+
+        if (!pA || !pB) {
+            grid.innerHTML = `
+                <div class="duel-empty">
+                    <span class="material-symbols-outlined">error_outline</span>
+                    <p class="text-sm font-bold text-on-surface-variant">One or both players have no data in this mode</p>
+                </div>`;
+            return;
+        }
+
+        const statsA = this.buildDuelStats(pA);
+        const statsB = this.buildDuelStats(pB);
+        const configA = this.getColorAccent(0);
+        const configB = this.getColorAccent(1);
+
+        // Player header cards
+        const initA = pA.originalUsername.substring(0, 2).toUpperCase();
+        const initB = pB.originalUsername.substring(0, 2).toUpperCase();
+        const miaA  = this.isMIA(pA.lastActiveDate);
+        const miaB  = this.isMIA(pB.lastActiveDate);
+
+        const playerHeaderA = `
+            <div class="duel-player-card">
+                <div class="w-16 h-16 rounded-xl flex items-center justify-center font-black text-2xl shadow-lg ${configA.bg} ${configA.text}">${initA}</div>
+                <a href="https://www.chess.com/member/${pA.originalUsername}" target="_blank"
+                   class="font-headline text-lg font-bold text-on-background hover:text-cyan-400 transition-colors">
+                    ${pA.originalUsername}
+                </a>
+                <span class="font-headline text-3xl font-black text-primary text-glow">${pA.rating.toLocaleString()}</span>
+                ${miaA ? '<span class="text-[10px] bg-outline-variant/20 text-outline px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>' : ''}
+            </div>`;
+
+        const playerHeaderB = `
+            <div class="duel-player-card">
+                <div class="w-16 h-16 rounded-xl flex items-center justify-center font-black text-2xl shadow-lg ${configB.bg} ${configB.text}">${initB}</div>
+                <a href="https://www.chess.com/member/${pB.originalUsername}" target="_blank"
+                   class="font-headline text-lg font-bold text-on-background hover:text-cyan-400 transition-colors">
+                    ${pB.originalUsername}
+                </a>
+                <span class="font-headline text-3xl font-black text-secondary">${pB.rating.toLocaleString()}</span>
+                ${miaB ? '<span class="text-[10px] bg-outline-variant/20 text-outline px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>' : ''}
+            </div>`;
+
+        // Build stat rows
+        let rowsHtml = '';
+        let currentSection = null;
+
+        statsA.forEach((statA, i) => {
+            const statB = statsB[i];
+
+            // Section header
+            if (statA.section !== currentSection) {
+                currentSection = statA.section;
+                const sectionMeta = {
+                    rating:   { icon: 'analytics',    label: 'Rating',        color: 'text-primary' },
+                    record:   { icon: 'sports_mma',   label: 'Record',         color: 'text-secondary' },
+                    history:  { icon: 'show_chart',   label: 'Performance',    color: 'text-tertiary' },
+                    milestone:{ icon: 'flag',          label: 'Next Milestone', color: 'text-tertiary' },
+                }[currentSection] || { icon: 'info', label: currentSection, color: 'text-on-surface-variant' };
+
+                rowsHtml += `
+                    <div class="duel-section-header">
+                        <span class="material-symbols-outlined ${sectionMeta.color}" style="font-variation-settings: 'FILL' 1;">${sectionMeta.icon}</span>
+                        <h4>${sectionMeta.label}</h4>
+                    </div>`;
+            }
+
+            // Determine winner
+            const winner = this.getDuelWinner(statA, statB);
+            const aWins = winner === 'A';
+            const bWins = winner === 'B';
+            const crownA = aWins ? '<span class="material-symbols-outlined text-sm" style="font-variation-settings: \'FILL\' 1;">star</span>' : '';
+            const crownB = bWins ? '<span class="material-symbols-outlined text-sm" style="font-variation-settings: \'FILL\' 1;">star</span>' : '';
+
+            rowsHtml += `
+                <div class="duel-row">
+                    <div class="duel-val-a ${aWins ? 'winner' : ''}">
+                        ${crownA}
+                        <span>${statA.display}</span>
                     </div>
-                    <div class="text-right shrink-0">
-                        <p class="font-headline text-lg font-bold text-on-background">${d.p.rating.toLocaleString()}</p>
-                        <p class="text-xs ${changeColor} font-bold">${changeStr}</p>
+                    <div class="duel-row-label">${statA.label}</div>
+                    <div class="duel-val-b ${bWins ? 'winner' : ''}">
+                        <span>${statB.display}</span>
+                        ${crownB}
                     </div>
                 </div>`;
-            });
-            listContainer.innerHTML = listHtml;
+        });
+
+        grid.innerHTML = `
+            <!-- Player Headers -->
+            <div class="grid grid-cols-3 gap-4 mb-6 items-stretch">
+                ${playerHeaderA}
+                <div class="flex items-center justify-center">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="material-symbols-outlined text-tertiary text-4xl" style="font-variation-settings: 'FILL' 1;">swords</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">VS</span>
+                    </div>
+                </div>
+                ${playerHeaderB}
+            </div>
+            <!-- Stat Rows -->
+            <div class="space-y-1.5">${rowsHtml}</div>`;
+    },
+
+    /**
+     * Compute all displayable duel stats for a single mode-flattened player.
+     */
+    buildDuelStats(p) {
+        const wins   = p.wins   ?? 0;
+        const losses = p.losses ?? 0;
+        const draws  = p.draws  ?? 0;
+        const total  = wins + losses + draws;
+        const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) + '%' : 'N/A';
+        const winRateRaw = total > 0 ? wins / total : 0;
+
+        // Rating change since last sync
+        let lastChange = 0;
+        if (p.history && p.history.length > 1) {
+            lastChange = p.rating - p.history[p.history.length - 2].rating;
+        }
+
+        // Weekly Elo change (7-day window)
+        const weeklyChange = this.computeWeeklyDelta(p);
+
+        // Peak distance
+        const peakDist = (p.peakRating ?? 0) - p.rating;
+
+        // Longest gain streak
+        let maxStreak = 0, curStreak = 0;
+        if (p.history && p.history.length > 1) {
+            for (let i = 1; i < p.history.length; i++) {
+                const delta = p.history[i].rating - p.history[i - 1].rating;
+                if (delta >= 0) { curStreak++; if (curStreak > maxStreak) maxStreak = curStreak; }
+                else curStreak = 0;
+            }
+        }
+
+        // Next milestone
+        const nextMs = Math.ceil(p.rating / 100) * 100;
+        const msTarget = nextMs === p.rating ? p.rating + 100 : nextMs;
+        const msDist = msTarget - p.rating;
+
+        const fmt = (n, prefix = '') => {
+            if (n === null || n === undefined) return 'N/A';
+            const sign = n > 0 ? '+' : '';
+            return prefix ? prefix + n.toLocaleString() : sign + n.toLocaleString();
+        };
+
+        return [
+            // Rating section
+            { section: 'rating',    label: 'Current Rating',   display: p.rating.toLocaleString(),        rawValue: p.rating,           higherIsBetter: true },
+            { section: 'rating',    label: 'Peak Rating',      display: (p.peakRating ?? 0).toLocaleString(), rawValue: p.peakRating ?? 0,  higherIsBetter: true },
+            { section: 'rating',    label: 'Dist. from Peak',  display: peakDist === 0 ? 'At Peak!' : '-' + peakDist, rawValue: peakDist, higherIsBetter: false },
+            // Record section
+            { section: 'record',    label: 'Wins',             display: wins.toLocaleString(),            rawValue: wins,               higherIsBetter: true },
+            { section: 'record',    label: 'Losses',           display: losses.toLocaleString(),          rawValue: losses,             higherIsBetter: false },
+            { section: 'record',    label: 'Draws',            display: draws.toLocaleString(),           rawValue: draws,              higherIsBetter: null },
+            { section: 'record',    label: 'Total Games',      display: total.toLocaleString(),           rawValue: total,              higherIsBetter: true },
+            { section: 'record',    label: 'Win Rate',         display: winRate,                          rawValue: winRateRaw,         higherIsBetter: true },
+            // Performance section
+            { section: 'history',   label: 'Last Sync Δ',      display: fmt(lastChange),                  rawValue: lastChange,         higherIsBetter: true },
+            { section: 'history',   label: 'Weekly Elo Δ',     display: weeklyChange !== null ? fmt(weeklyChange) : 'N/A', rawValue: weeklyChange ?? -Infinity, higherIsBetter: true },
+            { section: 'history',   label: 'Gain Streak',      display: maxStreak + ' syncs',             rawValue: maxStreak,          higherIsBetter: true },
+            { section: 'history',   label: 'History Points',   display: (p.history?.length ?? 0).toString(), rawValue: p.history?.length ?? 0, higherIsBetter: true },
+            // Milestone section
+            { section: 'milestone', label: 'Next Milestone',   display: `${msDist} pts → ${msTarget}`,   rawValue: msDist,             higherIsBetter: false },
+        ];
+    },
+
+    /**
+     * Compute the rolling 7-day Elo delta for a single player.
+     */
+    computeWeeklyDelta(p) {
+        if (!p.history || p.history.length < 2) return null;
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const pointsInWindow = p.history.filter(h => h.date >= sevenDaysAgo);
+        if (pointsInWindow.length >= 2) {
+            return pointsInWindow[pointsInWindow.length - 1].rating - pointsInWindow[0].rating;
+        }
+        const beforeWindow = p.history.filter(h => h.date < sevenDaysAgo);
+        if (beforeWindow.length > 0) {
+            return p.rating - beforeWindow[beforeWindow.length - 1].rating;
+        }
+        return null;
+    },
+
+    /**
+     * Determine which player wins a stat row.
+     * Returns 'A', 'B', or 'tie'.
+     */
+    getDuelWinner(statA, statB) {
+        if (statA.higherIsBetter === null) return 'tie'; // neutral stat (draws)
+        if (statA.rawValue === null || statB.rawValue === null) return 'tie';
+        if (statA.rawValue === statB.rawValue) return 'tie';
+        if (statA.higherIsBetter) {
+            return statA.rawValue > statB.rawValue ? 'A' : 'B';
+        } else {
+            return statA.rawValue < statB.rawValue ? 'A' : 'B';
         }
     },
 
