@@ -1,21 +1,25 @@
-Last Updated: 2026-05-12
+Last Updated: 2026-05-23
 
 # Active Context
 
 ## Current Work Focus
-- Replaced the Comparison tab entirely with a new **Duel** view for head-to-head player stat comparison.
+- Completed all planned bug fixes, UI/UX optimizations, and the Live Toast Notification feed.
 
 ## Recent Changes
-- `index.html`: Removed `view-comparison` HTML and all nav links; replaced with `view-duel` scaffold featuring two styled `<select>` dropdowns and a `#duel-stats-grid` injection target.
-- `js/store.js`: Added `STORAGE_KEY_DUEL`, `getDuelSelection()`, and `saveDuelSelection()` for persisting the two chosen player keys across sessions.
-- `js/app.js`: Removed `renderComparisonContent()` entirely. Added `duelPlayerA`/`duelPlayerB` to state (loaded from store on init). Added `renderDuelSelectors()`, `renderDuel()`, `buildDuelStats()`, `computeWeeklyDelta()`, and `getDuelWinner()`. Wired `syncData()` to re-render the duel grid after a sync completes.
-- `style.css`: Added `.duel-select`, `.duel-player-card`, `.duel-row`, `.duel-val-a/b`, `.duel-row-label`, `.duel-section-header`, `.duel-empty`, and staggered `duelRowIn` animation.
+- Updated `js/store.js` to fix the critical history pollution bug, ignore unrated modes during history updates, and clear saved duel selections on reset.
+- Optimized `js/stats.js` to eliminate redundant stats calculation calls.
+- Resolved ELO comparison bugs in `js/app.js` and removed references to "syncs" and "history point count" in UI displays.
+- Removed "games played between syncs" metric from Leaderboard view.
+- Filtered out unrated players from the Leaderboard list.
+- Relocated the search input from the top header directly onto the Leaderboard header/controls bar to support mobile responsiveness.
+- Created `#toast-container` in `index.html`, styled glassmorphic cards in `style.css`, and coded streak/MIA/ELO change comparison toasts in `js/app.js`.
+- Cleaned up accessibility (a11y) gaps across the HTML markup and decoupled navigation active class changes from JS.
 
 ## Key Behavior
-- Players start with no selection — user must pick both.
-- Selection is remembered in LocalStorage and survives page refresh.
-- After a sync, if the Duel view is active, the grid auto-updates.
-- Winner ⭐ icon highlights the better value on each stat row.
+- Syncing now triggers elegant toasts slide-in animations.
+- ELO logs are only stored when actual rating or game total updates occur.
+- Unrated players are cleanly hidden from the leaderboard view.
 
 ## Next Steps
-- (No pending items — awaiting next user request)
+- Awaiting user verification of the visual updates and toast feed.
+- Provide instructions for manual verification.

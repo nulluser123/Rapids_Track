@@ -17,7 +17,7 @@ export function computeStats(players, miaThresholdDays) {
     const activePlayers = playerList.filter(p => (nowUnix - p.lastActiveDate) <= thresholdSeconds);
     const allPlayers = playerList;
 
-    return {
+    const stats = {
         weeklyElo: computeWeeklyElo(allPlayers),
         volatility: computeVolatility(allPlayers),
         tiltTracker: computeTiltTracker(allPlayers),
@@ -27,10 +27,12 @@ export function computeStats(players, miaThresholdDays) {
         milestoneWatch: computeMilestoneWatch(allPlayers),
         grinder: computeGrinder(allPlayers),
         pacifist: computePacifist(allPlayers),
-        allOrNothing: computeAllOrNothing(allPlayers),
-        // Wrapped-style quick awards
-        awards: computeAwards(allPlayers)
+        allOrNothing: computeAllOrNothing(allPlayers)
     };
+
+    // Pass precomputed stats to computeAwards to optimize performance
+    stats.awards = computeAwards(allPlayers, stats);
+    return stats;
 }
 
 /**
@@ -336,16 +338,16 @@ function computeAllOrNothing(players) {
 /**
  * Awards — quick "Spotify Wrapped" style award snippets.
  */
-function computeAwards(players) {
+function computeAwards(players, precomputed = {}) {
     const awards = [];
-    const weekly = computeWeeklyElo(players);
-    const volatility = computeVolatility(players);
-    const tilt = computeTiltTracker(players);
-    const comeback = computeComebackKid(players);
-    const trend = computeTrendsetter(players);
-    const peak = computeDistanceFromPeak(players);
-    const milestone = computeMilestoneWatch(players);
-    const grinder = computeGrinder(players);
+    const weekly = precomputed.weeklyElo || computeWeeklyElo(players);
+    const volatility = precomputed.volatility || computeVolatility(players);
+    const tilt = precomputed.tiltTracker || computeTiltTracker(players);
+    const comeback = precomputed.comebackKid || computeComebackKid(players);
+    const trend = precomputed.trendsetter || computeTrendsetter(players);
+    const peak = precomputed.distanceFromPeak || computeDistanceFromPeak(players);
+    const milestone = precomputed.milestoneWatch || computeMilestoneWatch(players);
+    const grinder = precomputed.grinder || computeGrinder(players);
 
     if (weekly.gainers.length > 0) {
         awards.push({
@@ -392,7 +394,7 @@ function computeAwards(players) {
             icon: 'mood_bad',
             title: 'Tilt Demon',
             winner: tilt.worst.name,
-            value: `${tilt.worst.drop} in one sync`,
+            value: `${tilt.worst.drop} Elo drop`,
             color: 'error'
         });
     }
@@ -412,7 +414,7 @@ function computeAwards(players) {
             icon: 'trending_up',
             title: 'Trendsetter',
             winner: trend.best.name,
-            value: `${trend.best.streak} syncs rising`,
+            value: `${trend.best.streak} consecutive gains`,
             color: 'primary'
         });
     }

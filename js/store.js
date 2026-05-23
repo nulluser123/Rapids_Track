@@ -173,18 +173,40 @@ export const store = {
                 const newDraws = record.draw ?? bucket.draws ?? 0;
                 const newTotal = newWins + newLosses + newDraws;
                 
-                bucket.history.push({ date: now, rating: newRating, total: newTotal });
+                const prevRating = bucket.rating;
+                const prevTotal = (bucket.wins || 0) + (bucket.losses || 0) + (bucket.draws || 0);
+
+                // Avoid polluting empty/unrated buckets for time controls they don't play
+                if (newTotal === 0 && newRating === 0) {
+                    bucket.rating = 0;
+                    bucket.peakRating = 0;
+                    bucket.wins = 0;
+                    bucket.losses = 0;
+                    bucket.draws = 0;
+                    continue;
+                }
+
+                const lastEntry = bucket.history[bucket.history.length - 1];
+                const timeSinceLast = lastEntry ? (now - lastEntry.date) : Infinity;
+                const MIN_TIME_INTERVAL = 12 * 60 * 60 * 1000; // 12 Hours
+
+                const ratingChanged = newRating !== prevRating;
+                const gamesPlayedChanged = newTotal !== prevTotal;
+                const timeIntervalReached = timeSinceLast >= MIN_TIME_INTERVAL;
+
+                if (ratingChanged || gamesPlayedChanged || timeIntervalReached) {
+                    bucket.history.push({ date: now, rating: newRating, total: newTotal });
+                    if (bucket.history.length > 50) {
+                        bucket.history.shift();
+                    }
+                }
+                
                 bucket.rating = newRating;
                 bucket.lastActiveDate = newDate;
                 bucket.peakRating = newPeak || bucket.rating;
                 bucket.wins = newWins;
                 bucket.losses = newLosses;
                 bucket.draws = newDraws;
-                
-                // Keep history trimmed to last 50 data points
-                if (bucket.history.length > 50) {
-                    bucket.history.shift();
-                }
             }
         });
 
@@ -199,6 +221,7 @@ export const store = {
     clearAll() {
         localStorage.removeItem(STORAGE_KEY_PLAYERS);
         localStorage.removeItem(STORAGE_KEY_SETTINGS);
+        localStorage.removeItem(STORAGE_KEY_DUEL);
     },
     
     exportData() {

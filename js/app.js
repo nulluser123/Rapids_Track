@@ -48,10 +48,10 @@ const app = {
             });
         });
 
-        // Global Search
-        const inputGlobalSearch = document.getElementById('input-global-search');
-        if (inputGlobalSearch) {
-            inputGlobalSearch.addEventListener('input', (e) => {
+        // Leaderboard Search
+        const inputSearch = document.getElementById('input-leaderboard-search');
+        if (inputSearch) {
+            inputSearch.addEventListener('input', (e) => {
                 this.state.searchTerm = e.target.value.toLowerCase().trim();
                 this.renderAll();
             });
@@ -173,6 +173,7 @@ const app = {
             const isActive = btn.getAttribute('data-mode') === mode;
             btn.classList.toggle('mode-active', isActive);
             btn.classList.toggle('mode-inactive', !isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
 
         // Update the mode badge text
@@ -229,21 +230,11 @@ const app = {
 
         // Update nav active states
         document.querySelectorAll('.nav-btn, .nav-btn-top, .nav-btn-mobile').forEach(btn => {
-            btn.classList.remove('active', 'active-mobile');
-            if (btn.getAttribute('data-view') === viewId) {
-                if(btn.classList.contains('nav-btn-mobile')) {
-                    // Mobile active state tweaks
-                    btn.classList.add('active-mobile');
-                    btn.classList.replace('text-slate-400', 'text-cyan-400');
-                    btn.querySelector('.nav-icon').style.fontVariationSettings = "'FILL' 1";
-                } else {
-                    btn.classList.add('active');
-                }
+            const isActive = btn.getAttribute('data-view') === viewId;
+            if (btn.classList.contains('nav-btn-mobile')) {
+                btn.classList.toggle('active-mobile', isActive);
             } else {
-                if(btn.classList.contains('nav-btn-mobile')) {
-                    btn.classList.replace('text-cyan-400', 'text-slate-400');
-                    btn.querySelector('.nav-icon').style.fontVariationSettings = "'FILL' 0";
-                }
+                btn.classList.toggle('active', isActive);
             }
         });
         
@@ -275,6 +266,9 @@ const app = {
         const syncIcon = document.getElementById('sync-status-indicator');
         if(syncText) syncText.textContent = "Syncing...";
         if(syncIcon) syncIcon.classList.replace('bg-primary', 'bg-secondary');
+
+        // Capture old player profiles for generating toast feed
+        const oldPlayers = JSON.parse(JSON.stringify(this.state.players));
 
         // Grab usernames
         const usernames = Object.values(this.state.players).map(p => p.originalUsername);
@@ -315,6 +309,9 @@ const app = {
             }
         });
 
+        // Generate toast feed for rating updates, streaks, and MIA alerts
+        this.generateSyncToasts(oldPlayers, this.state.players);
+
         if(syncText) syncText.textContent = "Sync: 100%";
         if(syncIcon) syncIcon.classList.replace('bg-secondary', 'bg-primary');
         this.state.isSyncing = false;
@@ -323,6 +320,95 @@ const app = {
         if (this.state.currentView === 'duel') {
             this.renderDuel();
         }
+    },
+
+    generateSyncToasts(oldPlayers, newPlayers) {
+        const modes = ['rapid', 'blitz', 'bullet'];
+        const modeLabels = { rapid: 'Rapid', blitz: 'Blitz', bullet: 'Bullet' };
+
+        for (const [key, newPlayer] of Object.entries(newPlayers)) {
+            const oldPlayer = oldPlayers[key];
+            if (!oldPlayer) continue;
+
+            modes.forEach(mode => {
+                const oldBucket = oldPlayer[mode];
+                const newBucket = newPlayer[mode];
+                if (!oldBucket || !newBucket) return;
+
+                const oldRating = oldBucket.rating ?? 0;
+                const newRating = newBucket.rating ?? 0;
+
+                // 1. Rating Changes (only if both had/have rating > 0 to avoid first-time tracking spam)
+                if (newRating !== oldRating && oldRating > 0 && newRating > 0) {
+                    const diff = newRating - oldRating;
+                    const sign = diff > 0 ? `+${diff}` : `${diff}`;
+                    const icon = diff > 0 ? '🏆' : '📉';
+                    const diffText = diff > 0 ? 'gained' : 'lost';
+                    this.showToast(`${icon} ${newPlayer.originalUsername} ${diffText} ${sign} Elo in ${modeLabels[mode]}!`);
+                }
+
+                // 2. MIA Check (Active -> MIA transition)
+                const oldIsMia = this.isMIA(oldBucket.lastActiveDate);
+                const newIsMia = this.isMIA(newBucket.lastActiveDate);
+                if (!oldIsMia && newIsMia) {
+                    this.showToast(`⚠️ ${newPlayer.originalUsername} is now MIA in ${modeLabels[mode]}.`);
+                }
+
+                // 3. Streak Check (Consecutive gains)
+                if (newRating > oldRating) {
+                    let curStreak = 0;
+                    const history = newBucket.history || [];
+                    for (let i = history.length - 1; i > 0; i--) {
+                        const delta = history[i].rating - history[i - 1].rating;
+                        if (delta > 0) {
+                            curStreak++;
+                        } else if (delta < 0) {
+                            break;
+                        }
+                    }
+                    if (curStreak >= 3) {
+                        this.showToast(`🔥 ${newPlayer.originalUsername} is on a ${curStreak}-gain streak in ${modeLabels[mode]}!`);
+                    }
+                }
+            });
+        }
+    },
+
+    showToast(message) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification glass-card rounded-lg px-4 py-3 shadow-lg flex items-center gap-3 transition-all duration-300';
+        
+        let icon = 'info';
+        let iconClass = 'text-primary';
+        if (message.includes('🏆') || message.includes('🔥')) {
+            icon = 'military_tech';
+            iconClass = 'text-primary';
+        } else if (message.includes('📉')) {
+            icon = 'trending_down';
+            iconClass = 'text-error';
+        } else if (message.includes('⚠️')) {
+            icon = 'warning';
+            iconClass = 'text-tertiary';
+        }
+
+        toast.innerHTML = `
+            <span class="material-symbols-outlined ${iconClass} text-lg">${icon}</span>
+            <span class="text-sm font-bold text-on-background">${message.replace(/[🏆📉⚠️🔥]/g, '').trim()}</span>
+        `;
+
+        container.appendChild(toast);
+
+        // Slide in
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Slide out and remove
+        setTimeout(() => {
+            toast.classList.replace('show', 'hide');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
     },
 
     isMIA(lastActiveUnix) {
@@ -334,6 +420,10 @@ const app = {
     getSortedPlayers() {
         const modePlayers = this.getModePlayers();
         let players = Object.values(modePlayers).sort((a, b) => b.rating - a.rating);
+        
+        // Filter out unrated players (rating = 0)
+        players = players.filter(p => p.rating > 0);
+
         if (this.state.searchTerm) {
             players = players.filter(p => p.originalUsername.toLowerCase().includes(this.state.searchTerm));
         }
@@ -348,13 +438,12 @@ const app = {
             { bg: 'bg-primary-fixed-dim', text: 'text-on-primary-fixed-variant', border: 'border-primary', stroke: 'stroke-primary' },
             { bg: 'bg-error', text: 'text-on-error', border: 'border-error', stroke: 'stroke-error' },
             { bg: 'bg-secondary-container', text: 'text-on-secondary-container', border: 'border-secondary-container', stroke: 'stroke-secondary-container' }
-        ];
         return colors[index % colors.length];
     },
 
     generateSparklineSVG(history, config) {
         if (!history || history.length < 2) {
-             return `<svg class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30"><path d="M0,15 L100,15" stroke-linecap="round"></path></svg>`;
+             return `<svg role="img" aria-label="Flat rating history sparkline" class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30"><path d="M0,15 L100,15" stroke-linecap="round"></path></svg>`;
         }
         
         // Take up to last 10 points for sparkline
@@ -371,7 +460,8 @@ const app = {
         }).join(" ");
 
         return `
-            <svg class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30">
+            <svg role="img" aria-label="Rating history sparkline" class="w-full h-full ${config.stroke} fill-none stroke-[2]" viewBox="0 0 100 30">
+                <title>Rating history sparkline showing last 10 rating updates</title>
                 <path d="${pathData}" stroke-linecap="round" stroke-linejoin="round" class="sparkline-path" style="stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawSpark 1s ease-out forwards;"></path>
             </svg>
         `;
@@ -398,7 +488,7 @@ const app = {
         if (players.length === 0) {
              grid.innerHTML = `<div class="p-8 text-center text-on-surface-variant glass-card rounded-lg">No players tracked yet. Add one to begin.</div>`;
              return;
-        }
+         }
 
         // Assign rank numbers based on rating order first
         const playersWithRank = players.map((p, index) => ({
@@ -425,17 +515,6 @@ const app = {
             if (p.history && p.history.length > 1) {
                  ratingChange = p.rating - p.history[p.history.length - 2].rating;
             }
-
-            // Calculate games played between the last two syncs
-            let gamesPlayed = 0;
-            if (p.history && p.history.length > 1) {
-                const prevTotal = p.history[p.history.length - 2].total;
-                const currTotal = p.history[p.history.length - 1].total;
-                if (prevTotal != null && currTotal != null) {
-                    gamesPlayed = Math.max(0, currTotal - prevTotal);
-                }
-            }
-            const gamesLabel = gamesPlayed > 0 ? `${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'}` : null;
 
             const changeText = isMia ? '0.0' : (ratingChange === 0 ? '0.0' : (ratingChange > 0 ? `+${ratingChange}` : ratingChange));
             const changeColor = ratingChange > 0 ? 'text-primary' : (ratingChange < 0 ? 'text-error' : 'text-on-surface-variant');
@@ -519,7 +598,6 @@ const app = {
                                     <span class="material-symbols-outlined text-[10px] sm:text-sm">${changeIcon}</span>
                                     ${changeText}
                                 </div>
-                                ${gamesLabel ? `<div class="flex items-center justify-end gap-1 mt-0.5"><span class="text-[9px] sm:text-[10px] text-on-surface-variant/60 font-medium tracking-wide">${gamesLabel}</span></div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -744,7 +822,7 @@ const app = {
         const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) + '%' : 'N/A';
         const winRateRaw = total > 0 ? wins / total : 0;
 
-        // Rating change since last sync
+        // Rating change since last update
         let lastChange = 0;
         if (p.history && p.history.length > 1) {
             lastChange = p.rating - p.history[p.history.length - 2].rating;
@@ -789,10 +867,9 @@ const app = {
             { section: 'record',    label: 'Total Games',      display: total.toLocaleString(),           rawValue: total,              higherIsBetter: true },
             { section: 'record',    label: 'Win Rate',         display: winRate,                          rawValue: winRateRaw,         higherIsBetter: true },
             // Performance section
-            { section: 'history',   label: 'Last Sync Δ',      display: fmt(lastChange),                  rawValue: lastChange,         higherIsBetter: true },
-            { section: 'history',   label: 'Weekly Elo Δ',     display: weeklyChange !== null ? fmt(weeklyChange) : 'N/A', rawValue: weeklyChange ?? -Infinity, higherIsBetter: true },
-            { section: 'history',   label: 'Gain Streak',      display: maxStreak + ' syncs',             rawValue: maxStreak,          higherIsBetter: true },
-            { section: 'history',   label: 'History Points',   display: (p.history?.length ?? 0).toString(), rawValue: p.history?.length ?? 0, higherIsBetter: true },
+            { section: 'history',   label: 'Last Change Δ',    display: fmt(lastChange),                  rawValue: lastChange,         higherIsBetter: true },
+            { section: 'history',   label: 'Weekly Elo Δ',     display: weeklyChange !== null ? fmt(weeklyChange) : 'N/A', rawValue: weeklyChange, higherIsBetter: true },
+            { section: 'history',   label: 'Gain Streak',      display: maxStreak + ' gains',             rawValue: maxStreak,          higherIsBetter: true },
             // Milestone section
             { section: 'milestone', label: 'Next Milestone',   display: `${msDist} pts → ${msTarget}`,   rawValue: msDist,             higherIsBetter: false },
         ];
@@ -821,7 +898,7 @@ const app = {
      */
     getDuelWinner(statA, statB) {
         if (statA.higherIsBetter === null) return 'tie'; // neutral stat (draws)
-        if (statA.rawValue === null || statB.rawValue === null) return 'tie';
+        if (statA.rawValue === null || statB.rawValue === null || statA.rawValue === undefined || statB.rawValue === undefined) return 'tie';
         if (statA.rawValue === statB.rawValue) return 'tie';
         if (statA.higherIsBetter) {
             return statA.rawValue > statB.rawValue ? 'A' : 'B';
@@ -875,7 +952,7 @@ const app = {
                 <div class="sm:col-span-2 lg:col-span-3 stats-no-data">
                     <span class="material-symbols-outlined">emoji_events</span>
                     <p class="text-sm font-bold">No awards yet</p>
-                    <p class="text-xs">Sync your players a few times to unlock awards</p>
+                    <p class="text-xs">Track your players to unlock awards</p>
                 </div>`;
             return;
         }
@@ -910,7 +987,7 @@ const app = {
                 <div class="lg:col-span-2 stats-no-data">
                     <span class="material-symbols-outlined">calendar_today</span>
                     <p class="text-sm font-bold">No weekly data available</p>
-                    <p class="text-xs">Need at least 2 syncs within the last 7 days</p>
+                    <p class="text-xs">Need at least 2 updates within the last 7 days</p>
                 </div>`;
             return;
         }
@@ -1066,7 +1143,7 @@ const app = {
                         <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
                         <span class="font-bold text-on-background text-sm truncate">${t.name}</span>
                     </div>
-                    <span class="text-primary font-bold text-sm">${t.streak} syncs</span>
+                    <span class="text-primary font-bold text-sm">${t.streak} gains</span>
                 </div>`).join('');
             html += `
                 <div class="glass-card rounded-xl p-6">
@@ -1133,7 +1210,7 @@ const app = {
                 <div class="lg:col-span-2 stats-no-data">
                     <span class="material-symbols-outlined">analytics</span>
                     <p class="text-sm font-bold">No detailed stats available</p>
-                    <p class="text-xs">Sync a few more times to generate breakdowns</p>
+                    <p class="text-xs">Record more rating changes to generate breakdowns</p>
                 </div>`;
         }
 
@@ -1151,7 +1228,7 @@ const app = {
                 <div class="lg:col-span-3 stats-no-data">
                     <span class="material-symbols-outlined">sports_esports</span>
                     <p class="text-sm font-bold">No game record data</p>
-                    <p class="text-xs">Sync players to load win/loss/draw records from Chess.com</p>
+                    <p class="text-xs">Track players to load win/loss/draw records from Chess.com</p>
                 </div>`;
             return;
         }

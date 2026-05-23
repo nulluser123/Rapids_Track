@@ -79,6 +79,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-background text-on-background font-body selection:bg-primary/30 selection:text-primary min-h-screen">
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
 
 
     <!-- Top Navigation Container -->
@@ -95,10 +97,6 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <div class="relative hidden xl:block">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
-                <input id="input-global-search" class="bg-surface-container-lowest border-none rounded-md pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary placeholder:text-outline transition-all" placeholder="Global Search..." type="text"/>
-            </div>
             <button class="text-slate-400 hover:bg-white/5 p-2 rounded-full transition-all">
                 <span class="material-symbols-outlined">account_circle</span>
             </button>
@@ -111,7 +109,7 @@
         <!-- View: Leaderboard -->
         <div id="view-leaderboard" class="view active">
             <!-- Header Section -->
-            <section class="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+            <section class="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                 <div>
                     <div class="flex items-center gap-3 mb-2">
                         <h2 class="text-4xl font-headline font-bold tracking-tight text-on-background">Leaderboard</h2>
@@ -119,18 +117,23 @@
                     </div>
                     <p id="leaderboard-count" class="text-on-surface-variant font-medium">Loading players...</p>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <!-- Leaderboard Specific Search (Visible on all screens) -->
+                    <div class="relative w-full sm:w-64">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+                        <input id="input-leaderboard-search" class="bg-surface-container-lowest border border-outline-variant/20 rounded-md pl-10 pr-4 py-2 text-sm w-full focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-outline transition-all" placeholder="Search players..." type="text" aria-label="Search players on the leaderboard"/>
+                    </div>
                     <!-- Time Control Toggle -->
                     <div class="mode-toggle-group" role="tablist">
-                        <button data-mode="rapid" class="mode-toggle-btn mode-active" role="tab">
+                        <button data-mode="rapid" class="mode-toggle-btn mode-active" role="tab" aria-selected="true">
                             <span class="material-symbols-outlined text-base">speed</span>
                             <span>Rapid</span>
                         </button>
-                        <button data-mode="blitz" class="mode-toggle-btn mode-inactive" role="tab">
+                        <button data-mode="blitz" class="mode-toggle-btn mode-inactive" role="tab" aria-selected="false">
                             <span class="material-symbols-outlined text-base">bolt</span>
                             <span>Blitz</span>
                         </button>
-                        <button data-mode="bullet" class="mode-toggle-btn mode-inactive" role="tab">
+                        <button data-mode="bullet" class="mode-toggle-btn mode-inactive" role="tab" aria-selected="false">
                             <span class="material-symbols-outlined text-base">whatshot</span>
                             <span>Bullet</span>
                         </button>
@@ -437,7 +440,7 @@
                 <button id="btn-close-modal" class="text-on-surface-variant hover:text-on-background"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="mb-6">
-                <label class="block text-sm text-on-surface-variant mb-2 font-bold uppercase tracking-widest">Chess.com Username</label>
+                <label for="input-username" class="block text-sm text-on-surface-variant mb-2 font-bold uppercase tracking-widest">Chess.com Username</label>
                 <div class="relative group">
                     <input id="input-username" class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-background placeholder:text-outline-variant rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all group-focus-within:shadow-[0_0_15px_rgba(129,236,255,0.15)]" type="text" placeholder="e.g. Hikaru" />
                 </div>
