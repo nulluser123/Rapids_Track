@@ -438,6 +438,7 @@ const app = {
             { bg: 'bg-primary-fixed-dim', text: 'text-on-primary-fixed-variant', border: 'border-primary', stroke: 'stroke-primary' },
             { bg: 'bg-error', text: 'text-on-error', border: 'border-error', stroke: 'stroke-error' },
             { bg: 'bg-secondary-container', text: 'text-on-secondary-container', border: 'border-secondary-container', stroke: 'stroke-secondary-container' }
+        ];
         return colors[index % colors.length];
     },
 
