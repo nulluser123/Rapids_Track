@@ -11,7 +11,9 @@ const app = {
         players: store.getPlayers(),
         isSyncing: false,
         duelPlayerA: store.getDuelSelection().playerA,
-        duelPlayerB: store.getDuelSelection().playerB
+        duelPlayerB: store.getDuelSelection().playerB,
+        toastQueue: [],
+        activeToasts: 0
     },
     
     init() {
@@ -375,8 +377,21 @@ const app = {
     },
 
     showToast(message) {
+        this.state.toastQueue.push(message);
+        this.processToastQueue();
+    },
+
+    processToastQueue() {
+        if (this.state.activeToasts >= 2 || this.state.toastQueue.length === 0) return;
+
+        const message = this.state.toastQueue.shift();
+        this.state.activeToasts++;
+
         const container = document.getElementById('toast-container');
-        if (!container) return;
+        if (!container) {
+            this.state.activeToasts--;
+            return;
+        }
 
         const toast = document.createElement('div');
         toast.className = 'toast-notification glass-card rounded-lg px-4 py-3 shadow-lg flex items-center gap-3 transition-all duration-300';
@@ -407,8 +422,16 @@ const app = {
         // Slide out and remove
         setTimeout(() => {
             toast.classList.replace('show', 'hide');
-            setTimeout(() => toast.remove(), 300);
+            setTimeout(() => {
+                toast.remove();
+                this.state.activeToasts--;
+                // Process next toast after a transition delay
+                setTimeout(() => this.processToastQueue(), 300);
+            }, 300);
         }, 5000);
+
+        // Stagger the processing of the next toast in the queue by 1.5 seconds
+        setTimeout(() => this.processToastQueue(), 1500);
     },
 
     isMIA(lastActiveUnix) {
@@ -511,11 +534,18 @@ const app = {
             const initials = p.originalUsername.substring(0, 2).toUpperCase();
             const config = this.getColorAccent(p.rank - 1);
             
-            // Calculate rating change
+            // Calculate rating change and games played since last update
             let ratingChange = 0;
+            let gamesPlayed = 0;
             if (p.history && p.history.length > 1) {
                  ratingChange = p.rating - p.history[p.history.length - 2].rating;
+                 const prevTotal = p.history[p.history.length - 2].total;
+                 const currTotal = p.history[p.history.length - 1].total;
+                 if (prevTotal != null && currTotal != null) {
+                     gamesPlayed = Math.max(0, currTotal - prevTotal);
+                 }
             }
+            const gamesLabel = gamesPlayed > 0 ? `${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'}` : null;
 
             const changeText = isMia ? '0.0' : (ratingChange === 0 ? '0.0' : (ratingChange > 0 ? `+${ratingChange}` : ratingChange));
             const changeColor = ratingChange > 0 ? 'text-primary' : (ratingChange < 0 ? 'text-error' : 'text-on-surface-variant');
@@ -599,6 +629,7 @@ const app = {
                                     <span class="material-symbols-outlined text-[10px] sm:text-sm">${changeIcon}</span>
                                     ${changeText}
                                 </div>
+                                ${gamesLabel ? `<div class="flex items-center justify-end gap-1 mt-0.5"><span class="text-[9px] sm:text-[10px] text-on-surface-variant/60 font-medium tracking-wide">${gamesLabel}</span></div>` : ''}
                             </div>
                         </div>
                     </div>

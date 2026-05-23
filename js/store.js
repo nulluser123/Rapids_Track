@@ -108,6 +108,22 @@ export const store = {
                 raw[key] = migrated;
                 needsSave = true;
             }
+
+            // Ensure history entries have the total field populated if missing
+            for (const mode of TIME_CONTROLS) {
+                const bucket = raw[key][mode];
+                if (bucket && bucket.history && bucket.history.length > 0) {
+                    let lastKnownTotal = (bucket.wins || 0) + (bucket.losses || 0) + (bucket.draws || 0);
+                    for (let i = bucket.history.length - 1; i >= 0; i--) {
+                        if (bucket.history[i].total === undefined) {
+                            bucket.history[i].total = lastKnownTotal;
+                            needsSave = true;
+                        } else {
+                            lastKnownTotal = bucket.history[i].total;
+                        }
+                    }
+                }
+            }
         }
 
         if (needsSave) {
@@ -187,6 +203,9 @@ export const store = {
                 }
 
                 const lastEntry = bucket.history[bucket.history.length - 1];
+                if (lastEntry && lastEntry.total === undefined) {
+                    lastEntry.total = prevTotal;
+                }
                 const timeSinceLast = lastEntry ? (now - lastEntry.date) : Infinity;
                 const MIN_TIME_INTERVAL = 12 * 60 * 60 * 1000; // 12 Hours
 

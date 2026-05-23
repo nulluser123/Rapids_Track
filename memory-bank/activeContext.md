@@ -9,7 +9,7 @@ Last Updated: 2026-05-23
 - Updated `js/store.js` to fix the critical history pollution bug, ignore unrated modes during history updates, and clear saved duel selections on reset.
 - Optimized `js/stats.js` to eliminate redundant stats calculation calls.
 - Resolved ELO comparison bugs in `js/app.js` and removed references to "syncs" and "history point count" in UI displays.
-- Removed "games played between syncs" metric from Leaderboard view.
+- Restored and fixed the "games played since last update" (total matches played between syncs) metric on the Leaderboard view by retroactively migrating historical entries to include `total` games and handling missing total properties on updates.
 - Filtered out unrated players from the Leaderboard list.
 - Relocated the search input from the top header directly onto the Leaderboard header/controls bar to support mobile responsiveness.
 - Created `#toast-container` in `index.html`, styled glassmorphic cards in `style.css`, and coded streak/MIA/ELO change comparison toasts in `js/app.js`.
