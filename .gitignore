@@ -15,3 +15,7 @@ desktop.ini
 
 # Ignore local files
 players.txt
+
+# Ignore memory bank (AI context files, not for public repo)
+memory-bank/
+project memory bank.md
