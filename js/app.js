@@ -22,6 +22,16 @@ const app = {
         // Set initial view
         this.switchView('leaderboard');
         this.updateModeToggleUI();
+        this.setEditionDate();
+    },
+
+    setEditionDate() {
+        const ed = document.getElementById('edition-date');
+        if (ed) {
+            ed.textContent = new Date()
+                .toLocaleDateString([], { month: 'short', day: 'numeric' })
+                .toUpperCase();
+        }
     },
 
     bindEvents() {
@@ -114,7 +124,7 @@ const app = {
             }
 
             spinner.classList.add('hidden');
-            text.textContent = 'Track Player';
+            text.textContent = 'Add to ledger';
             btnConfirmAdd.disabled = false;
         });
 
@@ -507,10 +517,15 @@ const app = {
         if(!grid) return;
 
         const players = this.getSortedPlayers();
-        count.textContent = `${players.length} players tracked across all shards`;
+        count.textContent = `${players.length} player${players.length === 1 ? '' : 's'} on the books · sorted by rating`;
 
         if (players.length === 0) {
-             grid.innerHTML = `<div class="p-8 text-center text-on-surface-variant glass-card rounded-lg">No players tracked yet. Add one to begin.</div>`;
+             grid.innerHTML = `
+                <div class="glass-card rounded-lg px-8 py-16 text-center">
+                    <span class="material-symbols-outlined text-5xl text-outline">menu_book</span>
+                    <p class="font-display text-2xl text-on-background mt-3">The book is empty</p>
+                    <p class="text-on-surface-variant mt-1">Add a Chess.com player to open the standings.</p>
+                </div>`;
              return;
          }
 
@@ -550,90 +565,66 @@ const app = {
             const changeText = isMia ? '0.0' : (ratingChange === 0 ? '0.0' : (ratingChange > 0 ? `+${ratingChange}` : ratingChange));
             const changeColor = ratingChange > 0 ? 'text-primary' : (ratingChange < 0 ? 'text-error' : 'text-on-surface-variant');
             const changeIcon = ratingChange > 0 ? 'trending_up' : (ratingChange < 0 ? 'trending_down' : 'remove');
+            const uname = p.originalUsername.toLowerCase();
+            const profile = `https://www.chess.com/member/${p.originalUsername}`;
 
             if (isMia) {
-                // MIA Row styling
+                // Flag fell — struck from the active standings
                 const daysAgo = Math.floor(((Date.now()/1000) - p.lastActiveDate) / 86400);
                 html += `
-                    <div id="row-${p.originalUsername.toLowerCase()}" class="leaderboard-row group relative overflow-hidden glass-card rounded-lg opacity-40 grayscale transition-all duration-300 hover:opacity-70 hover:grayscale-0">
-                        <div class="flex items-center gap-4 px-4 sm:px-6 py-5 relative z-10">
-                            <div class="w-12 sm:w-16 flex justify-center">
-                                <span class="text-3xl font-headline font-bold text-outline leading-none">${rank}</span>
-                            </div>
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-surface-container-high flex items-center justify-center text-outline font-black text-lg">
-                                    ${initials}
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <a href="https://www.chess.com/member/${p.originalUsername}" target="_blank" class="text-sm sm:text-lg font-bold font-body text-outline break-all hover:text-cyan-400 transition-colors duration-300 block">${p.originalUsername}</a>
-                                        <span class="bg-outline-variant/20 text-outline text-[10px] px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>
-                                    </div>
-                                    <span class="text-xs text-outline/60 font-medium uppercase tracking-widest">Last seen ${daysAgo}d ago</span>
-                                </div>
-                            </div>
-                            <div class="hidden lg:block w-32 h-12">
-                                <svg class="w-full h-full stroke-outline fill-none stroke-[1] stroke-dasharray-4" viewBox="0 0 100 30">
-                                    <path d="M0,15 L100,15" stroke-linecap="round"></path>
-                                </svg>
-                            </div>
-                            <div class="text-right min-w-[80px] sm:min-w-[140px]">
-                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-3xl font-headline font-bold text-outline leading-none tabular-nums">
-                                    ${p.rating.toLocaleString()}
-                                </div>
-                                <div class="flex items-center justify-end gap-1 text-outline font-bold text-[10px] sm:text-sm mt-1">
-                                    <span class="material-symbols-outlined text-[10px] sm:text-sm">remove</span>
-                                    0.0
-                                </div>
+                    <div id="row-${uname}" class="leaderboard-row lb-row--mia group">
+                        <div class="lb-rank">
+                            <span class="lb-rank-num">${rank}</span>
+                            <span class="lb-rank-label">Board</span>
+                        </div>
+                        <div class="lb-id">
+                            <div class="lb-avatar bg-surface-container-high text-outline">${initials}</div>
+                            <div class="lb-meta">
+                                <h3 class="lb-name">
+                                    <a href="${profile}" target="_blank" rel="noopener">${p.originalUsername}</a>
+                                    <span class="lb-flag"><span class="material-symbols-outlined">flag</span>MIA</span>
+                                </h3>
+                                <span class="lb-sub">Flag fell · last seen ${daysAgo}d ago</span>
                             </div>
                         </div>
-                    </div>
-                `;
+                        <div class="lb-spark hidden lg:block">
+                            <svg class="w-full h-full stroke-outline fill-none stroke-[1]" viewBox="0 0 100 30"><path d="M0,15 L100,15" stroke-linecap="round" stroke-dasharray="3 3"></path></svg>
+                        </div>
+                        <div class="lb-score">
+                            <div id="rating-val-${uname}" class="lb-rating">${p.rating.toLocaleString()}</div>
+                            <div class="lb-delta text-outline"><span class="material-symbols-outlined">remove</span>0.0</div>
+                        </div>
+                    </div>`;
             } else {
-                // Active Row styling
+                // Active board
                 const isTopRanked = p.rank === 1;
-                const primaryGlow = isTopRanked ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_15px_rgba(129,236,255,0.6)]"></div><div class="absolute -left-20 top-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>` : '';
-                const rankClass = isTopRanked ? 'text-5xl text-primary-dim' : 'text-3xl sm:text-4xl text-on-surface-variant/50';
-                
-                let avatarClass = `w-10 h-10 sm:w-14 sm:h-14 rounded-md flex items-center justify-center font-black text-lg sm:text-xl shadow-lg ${config.bg} ${config.text}`;
-                
                 html += `
-                    <div id="row-${p.originalUsername.toLowerCase()}" class="leaderboard-row group relative overflow-hidden glass-card rounded-lg transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-highest/90">
-                        ${primaryGlow}
-                        <div class="flex items-center gap-4 px-4 sm:px-6 py-5 relative z-10">
-                            <div class="w-12 sm:w-16 flex justify-center">
-                                <span class="font-headline font-black leading-none ${rankClass}">${rank}</span>
-                            </div>
-                            <div class="flex flex-1 items-center gap-4">
-                                <div class="${avatarClass}">
-                                    ${initials}
-                                </div>
-                                <div>
-                                    <h3 class="flex items-center gap-2 break-all">
-                                        <a href="https://www.chess.com/member/${p.originalUsername}" target="_blank" class="text-sm sm:text-xl font-bold font-body text-on-background hover:text-cyan-400 transition-colors duration-300 inline-block">
-                                            ${p.originalUsername}
-                                        </a>
-                                        ${isTopRanked ? '<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
-                                    </h3>
-                                    <span class="text-[10px] sm:text-xs text-on-surface-variant font-medium uppercase tracking-widest">${isTopRanked ? 'Grandmaster Shard' : 'Ranked Contender'}</span>
-                                </div>
-                            </div>
-                            <div class="hidden lg:block w-32 h-12 opacity-80">
-                                ${this.generateSparklineSVG(p.history, config)}
-                            </div>
-                            <div class="text-right min-w-[80px] sm:min-w-[140px]">
-                                <div id="rating-val-${p.originalUsername.toLowerCase()}" class="text-2xl sm:text-4xl font-headline font-bold ${isTopRanked?'text-primary text-glow':'text-on-background'} leading-none tabular-nums">
-                                    ${p.rating.toLocaleString()}
-                                </div>
-                                <div class="flex items-center justify-end gap-1 ${changeColor} font-bold text-[10px] sm:text-sm mt-1">
-                                    <span class="material-symbols-outlined text-[10px] sm:text-sm">${changeIcon}</span>
-                                    ${changeText}
-                                </div>
-                                ${gamesLabel ? `<div class="flex items-center justify-end gap-1 mt-0.5"><span class="text-[9px] sm:text-[10px] text-on-surface-variant/60 font-medium tracking-wide">${gamesLabel}</span></div>` : ''}
+                    <div id="row-${uname}" class="leaderboard-row ${isTopRanked ? 'lb-row--top' : ''} group">
+                        <div class="lb-rank">
+                            <span class="lb-rank-num">${rank}</span>
+                            <span class="lb-rank-label">Board</span>
+                        </div>
+                        <div class="lb-id">
+                            <div class="lb-avatar ${config.bg} ${config.text}">${initials}</div>
+                            <div class="lb-meta">
+                                <h3 class="lb-name">
+                                    <a href="${profile}" target="_blank" rel="noopener">${p.originalUsername}</a>
+                                    ${isTopRanked ? '<span class="lb-stamp">Top board</span>' : ''}
+                                </h3>
+                                <span class="lb-sub">Peak ${(p.peakRating ?? 0).toLocaleString()}</span>
                             </div>
                         </div>
-                    </div>
-                `;
+                        <div class="lb-spark hidden lg:block">
+                            ${this.generateSparklineSVG(p.history, config)}
+                        </div>
+                        <div class="lb-score">
+                            <div id="rating-val-${uname}" class="lb-rating">${p.rating.toLocaleString()}</div>
+                            <div class="lb-delta ${changeColor}">
+                                <span class="material-symbols-outlined">${changeIcon}</span>${changeText}
+                            </div>
+                            ${gamesLabel ? `<span class="lb-games">${gamesLabel}</span>` : ''}
+                        </div>
+                    </div>`;
             }
         });
 
@@ -764,7 +755,7 @@ const app = {
             <div class="duel-player-card">
                 <div class="w-16 h-16 rounded-xl flex items-center justify-center font-black text-2xl shadow-lg ${configA.bg} ${configA.text}">${initA}</div>
                 <a href="https://www.chess.com/member/${pA.originalUsername}" target="_blank"
-                   class="font-headline text-lg font-bold text-on-background hover:text-cyan-400 transition-colors">
+                   class="font-headline text-lg font-bold text-on-background hover:text-primary transition-colors">
                     ${pA.originalUsername}
                 </a>
                 <span class="font-headline text-3xl font-black text-primary text-glow">${pA.rating.toLocaleString()}</span>
@@ -775,7 +766,7 @@ const app = {
             <div class="duel-player-card">
                 <div class="w-16 h-16 rounded-xl flex items-center justify-center font-black text-2xl shadow-lg ${configB.bg} ${configB.text}">${initB}</div>
                 <a href="https://www.chess.com/member/${pB.originalUsername}" target="_blank"
-                   class="font-headline text-lg font-bold text-on-background hover:text-cyan-400 transition-colors">
+                   class="font-headline text-lg font-bold text-on-background hover:text-primary transition-colors">
                     ${pB.originalUsername}
                 </a>
                 <span class="font-headline text-3xl font-black text-secondary">${pB.rating.toLocaleString()}</span>
