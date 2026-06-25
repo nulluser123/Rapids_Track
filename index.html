@@ -348,17 +348,24 @@
                 </p>
             </header>
 
-            <!-- The Dispatch — the columnist's read, written from the data -->
-            <article id="form-dispatch" class="form-dispatch mb-16">
-                <div class="form-dispatch-meta">
-                    <span class="form-dispatch-rule" aria-hidden="true"></span>
-                    <span class="form-dispatch-label">From the desk</span>
-                    <span class="form-dispatch-date" id="dispatch-date"></span>
-                </div>
-                <div id="form-dispatch-body" class="form-dispatch-body">
-                    <!-- JS injects the prose dispatch -->
-                </div>
-            </article>
+            <!-- Lead row: the columnist's dispatch + a decorative dot-field pawn -->
+            <div class="form-lead mb-16">
+                <!-- The Dispatch — the columnist's read, written from the data -->
+                <article id="form-dispatch" class="form-dispatch">
+                    <div class="form-dispatch-meta">
+                        <span class="form-dispatch-rule" aria-hidden="true"></span>
+                        <span class="form-dispatch-label">From the desk</span>
+                        <span class="form-dispatch-date" id="dispatch-date"></span>
+                    </div>
+                    <div id="form-dispatch-body" class="form-dispatch-body">
+                        <!-- JS injects the prose dispatch -->
+                    </div>
+                </article>
+                <!-- Floating-dot pawn — drawn on canvas, decorative only -->
+                <aside class="form-pawn" aria-hidden="true">
+                    <canvas id="form-pawn-canvas"></canvas>
+                </aside>
+            </div>
 
             <!-- Departments — two compact ledgers -->
             <div class="form-departments grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-12 mb-16">

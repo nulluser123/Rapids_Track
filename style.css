@@ -458,6 +458,34 @@ input[type="range"]::-moz-range-thumb {
 /* ---------- The dispatch (hero) ---------- */
 .form-dispatch { max-width: 62ch; }
 
+/* Lead row: prose on the left, a dot-field pawn standing in the right gap.
+   Single column until there's room (lg); then a two-track grid. */
+.form-lead { position: relative; }
+.form-pawn { display: none; }
+
+@media (min-width: 1024px) {
+    .form-lead {
+        display: grid;
+        grid-template-columns: minmax(0, 62ch) 1fr;
+        gap: 2.5rem;
+        align-items: stretch;
+    }
+    .form-pawn {
+        display: block;
+        position: relative;
+        min-height: 460px;
+        align-self: stretch;
+        pointer-events: none;
+    }
+    .form-pawn canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+}
+
 .form-dispatch-meta {
     display: flex;
     align-items: center;

@@ -2,6 +2,7 @@ import { store } from './store.js';
 import { fetchPlayerStats, fetchAllPlayers } from './api.js';
 import { animateValue, FLIP } from './animations.js';
 import { computeStats } from './stats.js';
+import { pawnParticles } from './pawn-particles.js';
 
 const app = {
     state: {
@@ -267,6 +268,9 @@ const app = {
         }
         if(viewId === 'stats') {
             this.renderStats();
+            pawnParticles.start();
+        } else {
+            pawnParticles.stop();
         }
     },
 
