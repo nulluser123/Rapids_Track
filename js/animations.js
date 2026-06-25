@@ -10,7 +10,7 @@ export const animateValue = (obj, start, end, duration) => {
         const easeOut = 1 - Math.pow(1 - progress, 4);
         
         const current = Math.floor(start + (end - start) * easeOut);
-        obj.innerHTML = current.toLocaleString();
+        obj.innerHTML = current;
         
         if (progress < 1) {
             window.requestAnimationFrame(step);

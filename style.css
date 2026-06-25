@@ -122,25 +122,32 @@ input[type="range"] {
     cursor: pointer;
 }
 input[type="range"]::-webkit-slider-runnable-track {
-    background: var(--paper-well);
-    height: 4px;
-    border-radius: 2px;
-    border: 1px solid var(--rule-soft);
+    background: rgba(47, 93, 69, 0.18);
+    height: 6px;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
 }
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    margin-top: -7px;
+    margin-top: -6px;
     background-color: var(--green);
     height: 16px;
     width: 16px;
     border-radius: 3px;
     box-shadow: 0 0 0 1px rgba(35,32,26,0.2);
 }
+input[type="range"]::-moz-range-track {
+    background: rgba(47, 93, 69, 0.18);
+    height: 6px;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
+}
 input[type="range"]::-moz-range-thumb {
     background-color: var(--green);
     height: 16px; width: 16px;
     border: none; border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(35,32,26,0.2);
 }
 
 /* ---------- Inputs ---------- */
@@ -442,92 +449,166 @@ input[type="range"]::-moz-range-thumb {
 .bar-grow-up { transform-origin: bottom; transition: height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 /* ============================================================
-   FORM BOOK — stats page
+   FORM BOOK — editorial digest
+   A weekly chess column set from the rating data.
+   Signature: the lead dispatch (drop-cap Fraunces). Everything
+   else stays quiet — hairlines, dot leaders, two ink colours.
    ============================================================ */
-.stats-section-header {
+
+/* ---------- The dispatch (hero) ---------- */
+.form-dispatch { max-width: 62ch; }
+
+.form-dispatch-meta {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 2px solid var(--green);
-    box-shadow: 0 3px 0 -1px rgba(47,93,69,0.25);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
 }
-.stats-section-header h3 {
+.form-dispatch-rule {
+    width: 1.75rem;
+    border-top: 2px solid var(--green);
+}
+.form-dispatch-label {
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--ink-soft) !important;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--green);
+}
+.form-dispatch-date {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
 }
 
-.stat-award-card {
-    background: var(--paper-card);
+.form-dispatch-body {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(1.3rem, 1.05rem + 0.9vw, 1.7rem);
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.003em;
+}
+.form-dispatch-body p { margin: 0 0 1rem; }
+.form-dispatch-body p:last-child { margin-bottom: 0; }
+
+/* Drop cap on the lead — the one bold gesture */
+.form-dispatch-body p:first-of-type::first-letter {
+    float: left;
+    font-weight: 900;
+    font-size: 3.5em;
+    line-height: 0.74;
+    padding: 0.04em 0.1em 0 0;
+    margin: 0.02em 0.04em 0 0;
+    color: var(--green);
+}
+
+/* Handles are tagged into the column — a faint green wash + hairline,
+   like a name marked on the wall chart. Deltas keep the saturated ink. */
+.dispatch-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.78em;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    background: rgba(47, 93, 69, 0.08);
     border: 1px solid var(--rule);
-    border-radius: 4px;
-    padding: 1.4rem;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-card);
-    transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1), border-color 0.2s ease;
-    opacity: 0;
-    transform: translateY(16px);
-    animation: statCardIn 0.5s ease-out forwards;
+    border-radius: 0.85em;
+    padding: 0.08em 0.5em 0.12em;
+    margin: 0 0.04em;
+    white-space: nowrap;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
-.stat-award-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
+.d-up,
+.d-down {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.82em;
 }
-.stat-award-card.accent-primary::before   { background: var(--green); }
-.stat-award-card.accent-error::before      { background: var(--flag); }
-.stat-award-card.accent-secondary::before  { background: var(--blue); }
-.stat-award-card.accent-tertiary::before   { background: var(--flag); }
-.stat-award-card:hover { transform: translateY(-3px); border-color: var(--green); }
+.d-up   { color: var(--green); }
+.d-down { color: var(--flag); }
 
-@keyframes statCardIn { to { opacity: 1; transform: translateY(0); } }
-.stat-award-card:nth-child(1) { animation-delay: 0.0s; }
-.stat-award-card:nth-child(2) { animation-delay: 0.06s; }
-.stat-award-card:nth-child(3) { animation-delay: 0.12s; }
-.stat-award-card:nth-child(4) { animation-delay: 0.18s; }
-.stat-award-card:nth-child(5) { animation-delay: 0.24s; }
-.stat-award-card:nth-child(6) { animation-delay: 0.30s; }
-.stat-award-card:nth-child(7) { animation-delay: 0.36s; }
-.stat-award-card:nth-child(8) { animation-delay: 0.42s; }
-.stat-award-card:nth-child(9) { animation-delay: 0.48s; }
-.stat-award-card:nth-child(10){ animation-delay: 0.54s; }
-
-.volatility-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.15rem 0.55rem;
-    border-radius: 2px;
+/* ---------- Departments (quiet ledgers) ---------- */
+.form-dept-head {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.66rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+    color: var(--ink-soft);
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--green);
+    margin-bottom: 0.25rem;
 }
-.volatility-pill.flat     { background: rgba(47,93,69,0.12);  color: var(--green); }
-.volatility-pill.moderate { background: rgba(46,74,99,0.12);  color: var(--blue); }
-.volatility-pill.wild     { background: rgba(178,58,43,0.12); color: var(--flag); }
 
-.stats-table-row {
+.form-subhead {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 1.1rem 0 0.1rem;
+}
+
+.form-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    background: var(--paper);
-    border: 1px solid var(--rule-soft);
-    border-radius: 3px;
-    transition: background 0.18s ease, border-color 0.18s ease;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--rule-soft);
 }
-.stats-table-row:hover { background: var(--surface-bright, #F4EDDD); border-color: var(--rule); }
+.form-row:last-child { border-bottom: 0; }
 
-.stats-no-data {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 3rem 1.5rem; text-align: center; color: var(--ink-faint); gap: 0.75rem;
+.form-row-name {
+    font-family: 'Libre Franklin', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
 }
-.stats-no-data .material-symbols-outlined { font-size: 2.5rem; opacity: 0.4; }
+/* Dot leader — the form-sheet texture */
+.form-row-lead {
+    flex: 1 1 1.5rem;
+    min-width: 1.25rem;
+    align-self: center;
+    margin-bottom: 0.18rem;
+    border-bottom: 2px dotted var(--outline);
+}
+.form-row-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.form-row-val.is-up   { color: var(--green); }
+.form-row-val.is-down { color: var(--flag); }
+.form-row-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+    margin-left: 0.4rem;
+    white-space: nowrap;
+}
+
+.form-dept-empty {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--ink-faint);
+    padding: 0.75rem 0;
+}
 
 /* ============================================================
    TIME-CONTROL TOGGLE (segmented, ruled)

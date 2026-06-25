@@ -338,70 +338,39 @@
         <!-- View: Stats -->
         <div id="view-stats" class="view hidden">
             <!-- Header Section -->
-            <header class="ledger-view-head mb-12">
-                <span class="view-eyebrow">Superlatives &amp; form</span>
+            <header class="ledger-view-head mb-10">
+                <span class="view-eyebrow">Weekly form bulletin</span>
                 <h2 class="font-display text-4xl sm:text-5xl font-semibold tracking-tight text-on-background mt-1">The Form Book</h2>
-                <p class="text-on-surface-variant font-medium tracking-wide mt-2">What the rating history says about every tracked player.</p>
+                <p class="text-on-surface-variant font-medium tracking-wide mt-2">A columnist's read on the week at the board.</p>
                 <p id="stats-data-notice" class="text-xs text-outline mt-3 hidden">
                     <span class="material-symbols-outlined text-xs align-middle">info</span>
-                    Some entries need a few syncs before they fill in. Keep syncing to complete the book.
+                    The book is still filling in. Keep syncing and the form will take shape.
                 </p>
             </header>
 
-            <!-- Awards Grid (Spotify Wrapped style) -->
-            <section class="mb-16">
-                <div class="stats-section-header">
-                    <span class="material-symbols-outlined text-secondary">emoji_events</span>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Awards &amp; Superlatives</h3>
+            <!-- The Dispatch — the columnist's read, written from the data -->
+            <article id="form-dispatch" class="form-dispatch mb-16">
+                <div class="form-dispatch-meta">
+                    <span class="form-dispatch-rule" aria-hidden="true"></span>
+                    <span class="form-dispatch-label">From the desk</span>
+                    <span class="form-dispatch-date" id="dispatch-date"></span>
                 </div>
-                <div id="stats-awards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- JS injects award cards -->
+                <div id="form-dispatch-body" class="form-dispatch-body">
+                    <!-- JS injects the prose dispatch -->
                 </div>
-            </section>
+            </article>
 
-            <!-- Weekly Elo Section -->
-            <section class="mb-16">
-                <div class="stats-section-header">
-                    <span class="material-symbols-outlined text-primary">calendar_today</span>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Weekly Elo Gain / Loss (Rolling 7 Days)</h3>
-                </div>
-                <div id="stats-weekly-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- JS injects weekly tables -->
-                </div>
-            </section>
-
-            <!-- Volatility Section -->
-            <section class="mb-16">
-                <div class="stats-section-header">
-                    <span class="material-symbols-outlined text-tertiary">show_chart</span>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">30-Day Volatility Index</h3>
-                </div>
-                <div id="stats-volatility-section">
-                    <!-- JS injects volatility rankings -->
-                </div>
-            </section>
-
-            <!-- Detailed Stats Section -->
-            <section class="mb-16">
-                <div class="stats-section-header">
-                    <span class="material-symbols-outlined text-secondary">analytics</span>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Detailed Breakdowns</h3>
-                </div>
-                <div id="stats-details-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- JS injects detailed stat cards -->
-                </div>
-            </section>
-
-            <!-- Game Records Section -->
-            <section class="mb-16">
-                <div class="stats-section-header">
-                    <span class="material-symbols-outlined text-primary">sports_esports</span>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Game Records</h3>
-                </div>
-                <div id="stats-records-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- JS injects record stats -->
-                </div>
-            </section>
+            <!-- Departments — two compact ledgers -->
+            <div class="form-departments grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-12 mb-16">
+                <section class="form-dept">
+                    <h3 class="form-dept-head">Movers this week</h3>
+                    <div id="dept-movers" class="form-dept-body"><!-- JS --></div>
+                </section>
+                <section class="form-dept">
+                    <h3 class="form-dept-head">On the watch</h3>
+                    <div id="dept-watch" class="form-dept-body"><!-- JS --></div>
+                </section>
+            </div>
 
             <footer class="ledger-footer mt-12 flex justify-between items-center px-1 py-6">
                 <div class="text-[11px] text-on-surface-variant font-medium uppercase tracking-[0.2em] font-mono hidden sm:block">
@@ -414,7 +383,7 @@
 
     <!-- Floating Add Player Button -->
     <button id="fab-add-player" class="ledger-fab fixed bottom-20 md:bottom-8 right-4 md:right-8 flex items-center justify-center group active:scale-95 transition-all duration-200 z-40 view-dependent-fab" aria-label="Track a new player">
-        <span class="material-symbols-outlined text-3xl transition-transform group-hover:rotate-90">person_add</span>
+        <span class="material-symbols-outlined text-3xl transition-transform duration-200 ease-out group-hover:scale-110">person_add</span>
     </button>
 
     <!-- BottomNavBar (Mobile) -->

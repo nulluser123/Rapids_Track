@@ -591,7 +591,7 @@ const app = {
                             <svg class="w-full h-full stroke-outline fill-none stroke-[1]" viewBox="0 0 100 30"><path d="M0,15 L100,15" stroke-linecap="round" stroke-dasharray="3 3"></path></svg>
                         </div>
                         <div class="lb-score">
-                            <div id="rating-val-${uname}" class="lb-rating">${p.rating.toLocaleString()}</div>
+                            <div id="rating-val-${uname}" class="lb-rating">${p.rating}</div>
                             <div class="lb-delta text-outline"><span class="material-symbols-outlined">remove</span>0.0</div>
                         </div>
                     </div>`;
@@ -611,14 +611,14 @@ const app = {
                                     <a href="${profile}" target="_blank" rel="noopener">${p.originalUsername}</a>
                                     ${isTopRanked ? '<span class="lb-stamp">Top board</span>' : ''}
                                 </h3>
-                                <span class="lb-sub">Peak ${(p.peakRating ?? 0).toLocaleString()}</span>
+                                <span class="lb-sub">Peak ${p.peakRating ?? 0}</span>
                             </div>
                         </div>
                         <div class="lb-spark hidden lg:block">
                             ${this.generateSparklineSVG(p.history, config)}
                         </div>
                         <div class="lb-score">
-                            <div id="rating-val-${uname}" class="lb-rating">${p.rating.toLocaleString()}</div>
+                            <div id="rating-val-${uname}" class="lb-rating">${p.rating}</div>
                             <div class="lb-delta ${changeColor}">
                                 <span class="material-symbols-outlined">${changeIcon}</span>${changeText}
                             </div>
@@ -758,7 +758,7 @@ const app = {
                    class="font-headline text-lg font-bold text-on-background hover:text-primary transition-colors">
                     ${pA.originalUsername}
                 </a>
-                <span class="font-headline text-3xl font-black text-primary text-glow">${pA.rating.toLocaleString()}</span>
+                <span class="font-headline text-3xl font-black text-primary text-glow">${pA.rating}</span>
                 ${miaA ? '<span class="text-[10px] bg-outline-variant/20 text-outline px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>' : ''}
             </div>`;
 
@@ -769,7 +769,7 @@ const app = {
                    class="font-headline text-lg font-bold text-on-background hover:text-primary transition-colors">
                     ${pB.originalUsername}
                 </a>
-                <span class="font-headline text-3xl font-black text-secondary">${pB.rating.toLocaleString()}</span>
+                <span class="font-headline text-3xl font-black text-secondary">${pB.rating}</span>
                 ${miaB ? '<span class="text-[10px] bg-outline-variant/20 text-outline px-2 py-0.5 rounded border border-outline-variant/30 uppercase font-black">MIA</span>' : ''}
             </div>`;
 
@@ -875,13 +875,13 @@ const app = {
         const fmt = (n, prefix = '') => {
             if (n === null || n === undefined) return 'N/A';
             const sign = n > 0 ? '+' : '';
-            return prefix ? prefix + n.toLocaleString() : sign + n.toLocaleString();
+            return prefix ? prefix + n : sign + n;
         };
 
         return [
             // Rating section
-            { section: 'rating',    label: 'Current Rating',   display: p.rating.toLocaleString(),        rawValue: p.rating,           higherIsBetter: true },
-            { section: 'rating',    label: 'Peak Rating',      display: (p.peakRating ?? 0).toLocaleString(), rawValue: p.peakRating ?? 0,  higherIsBetter: true },
+            { section: 'rating',    label: 'Current Rating',   display: String(p.rating),                 rawValue: p.rating,           higherIsBetter: true },
+            { section: 'rating',    label: 'Peak Rating',      display: String(p.peakRating ?? 0),         rawValue: p.peakRating ?? 0,  higherIsBetter: true },
             { section: 'rating',    label: 'Dist. from Peak',  display: peakDist === 0 ? 'At Peak!' : '-' + peakDist, rawValue: peakDist, higherIsBetter: false },
             // Record section
             { section: 'record',    label: 'Wins',             display: wins.toLocaleString(),            rawValue: wins,               higherIsBetter: true },
@@ -950,7 +950,7 @@ const app = {
         const stats = computeStats(modePlayers, this.state.settings.miaThresholdDays);
         const playerCount = Object.keys(modePlayers).length;
 
-        // Show data notice if fewer than 2 history points on average
+        // Hint when history is too thin for the column to say much
         const notice = document.getElementById('stats-data-notice');
         if (notice) {
             const avgHistory = playerCount > 0
@@ -959,375 +959,159 @@ const app = {
             notice.classList.toggle('hidden', avgHistory >= 3);
         }
 
-        this.renderAwards(stats.awards);
-        this.renderWeeklyElo(stats.weeklyElo);
-        this.renderVolatility(stats.volatility);
-        this.renderDetailedStats(stats);
-        this.renderRecordStats(stats);
+        this.setDispatchDate();
+        this.renderDispatch(stats, playerCount);
+        this.renderMovers(stats.weeklyElo);
+        this.renderWatch(stats);
     },
 
-    renderAwards(awards) {
-        const grid = document.getElementById('stats-awards-grid');
-        if (!grid) return;
+    setDispatchDate() {
+        const el = document.getElementById('dispatch-date');
+        if (el) {
+            el.textContent = new Date()
+                .toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+                .toUpperCase();
+        }
+    },
 
-        if (awards.length === 0) {
-            grid.innerHTML = `
-                <div class="sm:col-span-2 lg:col-span-3 stats-no-data">
-                    <span class="material-symbols-outlined">emoji_events</span>
-                    <p class="text-sm font-bold">No awards yet</p>
-                    <p class="text-xs">Track your players to unlock awards</p>
-                </div>`;
+    // —— Small inline helpers for the prose dispatch ——
+    escHtml(str) {
+        return String(str).replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+    },
+    dName(n) { return `<span class="dispatch-name">${this.escHtml(n)}</span>`; },
+    dUp(v)   { return `<span class="d-up">${this.escHtml(v)}</span>`; },
+    dDown(v) { return `<span class="d-down">${this.escHtml(v)}</span>`; },
+
+    /**
+     * Writes the week up as a short column from the computed stats.
+     * Returns an array of paragraph HTML strings; the first always opens
+     * with plain text so the CSS drop cap lands on a real letter.
+     */
+    composeDispatch(stats) {
+        const paras = [];
+        const wk = stats.weeklyElo;
+        const vol = stats.volatility;
+        const tilt = stats.tiltTracker;
+        const comeback = stats.comebackKid;
+        const milestone = stats.milestoneWatch;
+        const grinder = stats.grinder;
+
+        // Paragraph 1 — the week's swings
+        const p1 = [];
+        const topGain = wk.gainers[0];
+        const topDrop = wk.losers[0];
+        if (topGain && topDrop) {
+            p1.push(`The week belonged to ${this.dName(topGain.name)}, up ${this.dUp('+' + topGain.change)} on the board, while ${this.dName(topDrop.name)} slid the other way at ${this.dDown(topDrop.change)}.`);
+        } else if (topGain) {
+            p1.push(`The week ran hottest for ${this.dName(topGain.name)}, up ${this.dUp('+' + topGain.change)}.`);
+        } else if (topDrop) {
+            p1.push(`A quiet week up top, but ${this.dName(topDrop.name)} felt it most, down ${this.dDown(topDrop.change)}.`);
+        }
+        if (comeback.best && tilt.worst) {
+            p1.push(`Off the canvas, ${this.dName(comeback.best.name)} clawed back ${this.dUp('+' + comeback.best.recovery)} from a low, while ${this.dName(tilt.worst.name)} took the cruelest single session — ${this.dDown(tilt.worst.drop)} in one sitting.`);
+        } else if (comeback.best) {
+            p1.push(`Off the canvas, ${this.dName(comeback.best.name)} clawed back ${this.dUp('+' + comeback.best.recovery)} from a low.`);
+        } else if (tilt.worst) {
+            p1.push(`The hardest fall went to ${this.dName(tilt.worst.name)} — ${this.dDown(tilt.worst.drop)} in one sitting.`);
+        }
+        if (p1.length) paras.push(p1.join(' '));
+
+        // Paragraph 2 — temperament and ambition
+        const p2 = [];
+        if (vol.wildest && vol.flattest && vol.all.length > 1) {
+            p2.push(`For temperament, ${this.dName(vol.wildest.name)} rode the wildest line (σ ${vol.wildest.stdDev}) while ${this.dName(vol.flattest.name)} held steadiest of all (σ ${vol.flattest.stdDev}).`);
+        } else if (vol.wildest) {
+            p2.push(`For temperament, ${this.dName(vol.wildest.name)} kept the most volatile form (σ ${vol.wildest.stdDev}).`);
+        }
+        if (milestone.closest) {
+            p2.push(`Closest to a milestone sits ${this.dName(milestone.closest.name)}, just ${milestone.closest.distance} from ${milestone.closest.target}.`);
+        }
+        if (grinder.top) {
+            p2.push(`And ${this.dName(grinder.top.name)} keeps grinding — ${grinder.top.total.toLocaleString()} games and counting.`);
+        }
+        if (p2.length) paras.push(p2.join(' '));
+
+        return paras;
+    },
+
+    renderDispatch(stats, playerCount) {
+        const body = document.getElementById('form-dispatch-body');
+        if (!body) return;
+
+        if (playerCount === 0) {
+            body.innerHTML = `<p>The book is blank. Track a few players and run a sync to see the week take shape.</p>`;
             return;
         }
 
-        const colorMap = {
-            primary: { icon: 'text-primary', glow: 'text-glow' },
-            error: { icon: 'text-error', glow: '' },
-            secondary: { icon: 'text-secondary', glow: '' },
-            tertiary: { icon: 'text-tertiary', glow: '' }
-        };
-
-        grid.innerHTML = awards.map(a => {
-            const colors = colorMap[a.color] || colorMap.primary;
-            return `
-                <div class="stat-award-card accent-${a.color}">
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="material-symbols-outlined ${colors.icon} text-2xl" style="font-variation-settings: 'FILL' 1;">${a.icon}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">${a.title}</span>
-                    </div>
-                    <div class="font-headline text-xl font-bold text-on-background ${colors.glow} truncate">${a.winner}</div>
-                    <div class="text-xs font-bold ${colors.icon} mt-1 tracking-wide">${a.value}</div>
-                </div>`;
-        }).join('');
-    },
-
-    renderWeeklyElo(weeklyElo) {
-        const container = document.getElementById('stats-weekly-section');
-        if (!container) return;
-
-        if (weeklyElo.all.length === 0) {
-            container.innerHTML = `
-                <div class="lg:col-span-2 stats-no-data">
-                    <span class="material-symbols-outlined">calendar_today</span>
-                    <p class="text-sm font-bold">No weekly data available</p>
-                    <p class="text-xs">Need at least 2 updates within the last 7 days</p>
-                </div>`;
+        const paras = this.composeDispatch(stats);
+        if (paras.length === 0) {
+            body.innerHTML = `<p>Not enough history yet to call the week. Keep syncing and the form will fill in.</p>`;
             return;
         }
-
-        // Gainers column
-        const gainersHtml = weeklyElo.gainers.length > 0
-            ? weeklyElo.gainers.map((g, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${g.name}</span>
-                    </div>
-                    <div class="flex items-center gap-1 text-primary font-bold text-sm">
-                        <span class="material-symbols-outlined text-sm">trending_up</span>
-                        +${g.change}
-                    </div>
-                </div>`).join('')
-            : '<div class="stats-table-row"><span class="text-on-surface-variant text-sm">No gainers this week</span></div>';
-
-        // Losers column
-        const losersHtml = weeklyElo.losers.length > 0
-            ? weeklyElo.losers.map((l, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${l.name}</span>
-                    </div>
-                    <div class="flex items-center gap-1 text-error font-bold text-sm">
-                        <span class="material-symbols-outlined text-sm">trending_down</span>
-                        ${l.change}
-                    </div>
-                </div>`).join('')
-            : '<div class="stats-table-row"><span class="text-on-surface-variant text-sm">No losers this week</span></div>';
-
-        container.innerHTML = `
-            <div class="glass-card rounded-xl p-6">
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-primary text-lg">arrow_upward</span>
-                    <h4 class="text-xs font-bold uppercase tracking-widest text-primary">Top Gainers</h4>
-                </div>
-                <div class="space-y-2">${gainersHtml}</div>
-            </div>
-            <div class="glass-card rounded-xl p-6">
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-error text-lg">arrow_downward</span>
-                    <h4 class="text-xs font-bold uppercase tracking-widest text-error">Biggest Drops</h4>
-                </div>
-                <div class="space-y-2">${losersHtml}</div>
-            </div>`;
+        body.innerHTML = paras.map(p => `<p>${p}</p>`).join('');
     },
 
-    renderVolatility(volatility) {
-        const container = document.getElementById('stats-volatility-section');
-        if (!container) return;
-
-        if (!volatility.all || volatility.all.length === 0) {
-            container.innerHTML = `
-                <div class="stats-no-data">
-                    <span class="material-symbols-outlined">show_chart</span>
-                    <p class="text-sm font-bold">Not enough data for volatility</p>
-                    <p class="text-xs">Need at least 3 history points within the last 30 days</p>
-                </div>`;
-            return;
-        }
-
-        const maxStdDev = Math.max(...volatility.all.map(v => v.stdDev), 1);
-
-        const rows = volatility.all.map((v, i) => {
-            const barWidth = Math.max((v.stdDev / maxStdDev) * 100, 4);
-            let pillClass = 'flat';
-            if (v.stdDev > maxStdDev * 0.6) pillClass = 'wild';
-            else if (v.stdDev > maxStdDev * 0.3) pillClass = 'moderate';
-
-            const isWildest = i === 0;
-            const isFlattest = i === volatility.all.length - 1 && volatility.all.length > 1;
-            let badge = '';
-            if (isWildest) badge = '<span class="text-[9px] bg-tertiary/15 text-tertiary px-2 py-0.5 rounded-full font-bold uppercase">Wildest</span>';
-            if (isFlattest) badge = '<span class="text-[9px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold uppercase">Flattest</span>';
-
-            return `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${v.name}</span>
-                        ${badge}
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div class="hidden sm:block w-32 h-2 bg-surface-container-lowest rounded-full overflow-hidden">
-                            <div class="h-full rounded-full transition-all duration-700" style="width: ${barWidth}%; background: ${pillClass === 'wild' ? '#ff6c95' : pillClass === 'moderate' ? '#a68cff' : '#81ecff'};"></div>
-                        </div>
-                        <span class="volatility-pill ${pillClass}">σ ${v.stdDev}</span>
-                    </div>
-                </div>`;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="glass-card rounded-xl p-6">
-                <div class="space-y-2">${rows}</div>
-            </div>`;
+    // One ledger row: name · dot leader · value (+ optional caption)
+    formRow(name, val, valClass = '', sub = '') {
+        const subHtml = sub ? `<span class="form-row-sub">${this.escHtml(sub)}</span>` : '';
+        return `<div class="form-row">`
+            + `<span class="form-row-name">${this.escHtml(name)}</span>`
+            + `<span class="form-row-lead" aria-hidden="true"></span>`
+            + `<span class="form-row-val ${valClass}">${this.escHtml(val)}</span>`
+            + subHtml
+            + `</div>`;
     },
 
-    renderDetailedStats(stats) {
-        const container = document.getElementById('stats-details-section');
-        if (!container) return;
+    renderMovers(weeklyElo) {
+        const el = document.getElementById('dept-movers');
+        if (!el) return;
 
-        let html = '';
+        const gainers = weeklyElo.gainers.slice(0, 4);
+        const losers = weeklyElo.losers.slice(0, 4);
 
-        // Tilt Tracker
-        if (stats.tiltTracker.all.length > 0) {
-            const rows = stats.tiltTracker.all.slice(0, 5).map((t, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${t.name}</span>
-                    </div>
-                    <span class="text-error font-bold text-sm">${t.drop}</span>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">mood_bad</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Tilt Tracker (Worst Single Drop)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
-        }
-
-        // Comeback Kid
-        if (stats.comebackKid.all.length > 0) {
-            const rows = stats.comebackKid.all.slice(0, 5).map((c, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${c.name}</span>
-                    </div>
-                    <span class="text-primary font-bold text-sm">+${c.recovery}</span>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Comeback Kid (Max Recovery)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
-        }
-
-        // Trendsetter
-        if (stats.trendsetter.all.length > 0) {
-            const rows = stats.trendsetter.all.slice(0, 5).map((t, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${t.name}</span>
-                    </div>
-                    <span class="text-primary font-bold text-sm">${t.streak} gains</span>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Trendsetter (Longest Gain Streak)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
-        }
-
-        // Distance From Peak
-        if (stats.distanceFromPeak.all.length > 0) {
-            const rows = stats.distanceFromPeak.all.slice(0, 5).map((d, i) => {
-                const atPeak = d.distance === 0;
-                return `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${d.name}</span>
-                        ${atPeak ? '<span class="text-[9px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold uppercase">At Peak!</span>' : ''}
-                    </div>
-                    <div class="text-right">
-                        <span class="font-headline font-bold text-sm ${atPeak ? 'text-primary' : 'text-on-surface-variant'}">${atPeak ? d.peak : '-' + d.distance}</span>
-                        <span class="text-[10px] text-outline block">peak: ${d.peak}</span>
-                    </div>
-                </div>`;
-            }).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">military_tech</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Distance From Peak</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
-        }
-
-        // Milestone Watch
-        if (stats.milestoneWatch.all.length > 0) {
-            const rows = stats.milestoneWatch.all.slice(0, 5).map((m, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${m.name}</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="font-headline font-bold text-sm text-tertiary">${m.distance} pts</span>
-                        <span class="text-[10px] text-outline block">${m.rating} → ${m.target}</span>
-                    </div>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">flag</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Milestone Watch (Next 100)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
-        }
-
-        if (html === '') {
-            html = `
-                <div class="lg:col-span-2 stats-no-data">
-                    <span class="material-symbols-outlined">analytics</span>
-                    <p class="text-sm font-bold">No detailed stats available</p>
-                    <p class="text-xs">Record more rating changes to generate breakdowns</p>
-                </div>`;
-        }
-
-        container.innerHTML = html;
-    },
-
-    renderRecordStats(stats) {
-        const container = document.getElementById('stats-records-section');
-        if (!container) return;
-
-        const hasRecordData = stats.grinder.all.length > 0;
-
-        if (!hasRecordData) {
-            container.innerHTML = `
-                <div class="lg:col-span-3 stats-no-data">
-                    <span class="material-symbols-outlined">sports_esports</span>
-                    <p class="text-sm font-bold">No game record data</p>
-                    <p class="text-xs">Track players to load win/loss/draw records from Chess.com</p>
-                </div>`;
+        if (gainers.length === 0 && losers.length === 0) {
+            el.innerHTML = `<p class="form-dept-empty">No swings logged in the last seven days.</p>`;
             return;
         }
 
         let html = '';
+        if (gainers.length) {
+            html += `<div class="form-subhead">Gaining</div>`;
+            html += gainers.map(g => this.formRow(g.name, '+' + g.change, 'is-up')).join('');
+        }
+        if (losers.length) {
+            html += `<div class="form-subhead">Slipping</div>`;
+            html += losers.map(l => this.formRow(l.name, String(l.change), 'is-down')).join('');
+        }
+        el.innerHTML = html;
+    },
 
-        // The Grinder
-        if (stats.grinder.all.length > 0) {
-            const rows = stats.grinder.all.slice(0, 5).map((g, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${g.name}</span>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <span class="font-headline font-bold text-sm text-secondary">${g.total.toLocaleString()}</span>
-                        <span class="text-[10px] text-outline block">${g.wins}W / ${g.losses}L / ${g.draws}D</span>
-                    </div>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">sports_mma</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">The Grinder (Most Games)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
+    renderWatch(stats) {
+        const el = document.getElementById('dept-watch');
+        if (!el) return;
+
+        const milestone = (stats.milestoneWatch.all || []).slice(0, 3);
+        const nearPeak = (stats.distanceFromPeak.all || [])
+            .filter(d => d.distance > 0)
+            .slice(0, 3);
+
+        if (milestone.length === 0 && nearPeak.length === 0) {
+            el.innerHTML = `<p class="form-dept-empty">Nothing on the horizon just yet.</p>`;
+            return;
         }
 
-        // Pacifist
-        if (stats.pacifist.all.length > 0) {
-            const rows = stats.pacifist.all.slice(0, 5).map((p, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${p.name}</span>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <span class="font-headline font-bold text-sm text-primary">${p.drawRate.toFixed(1)}%</span>
-                        <span class="text-[10px] text-outline block">${p.draws} draws / ${p.total}</span>
-                    </div>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">handshake</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">The Pacifist (Draw Rate)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
+        let html = '';
+        if (milestone.length) {
+            html += `<div class="form-subhead">Next milestone</div>`;
+            html += milestone.map(m => this.formRow(m.name, `${m.distance} pts`, '', `→ ${m.target}`)).join('');
         }
-
-        // All-or-Nothing
-        if (stats.allOrNothing.all.length > 0) {
-            const rows = stats.allOrNothing.all.slice(0, 5).map((a, i) => `
-                <div class="stats-table-row">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="text-xs font-headline font-bold text-on-surface-variant w-6 shrink-0">#${i + 1}</span>
-                        <span class="font-bold text-on-background text-sm truncate">${a.name}</span>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <span class="font-headline font-bold text-sm text-tertiary">${a.decisiveRate.toFixed(1)}%</span>
-                        <span class="text-[10px] text-outline block">decisive</span>
-                    </div>
-                </div>`).join('');
-            html += `
-                <div class="glass-card rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
-                        <h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">All-or-Nothing (Lowest Draw Rate)</h4>
-                    </div>
-                    <div class="space-y-2">${rows}</div>
-                </div>`;
+        if (nearPeak.length) {
+            html += `<div class="form-subhead">Near a peak</div>`;
+            html += nearPeak.map(d => this.formRow(d.name, `${d.distance} back`, '', `peak ${d.peak}`)).join('');
         }
-
-        container.innerHTML = html;
+        el.innerHTML = html;
     }
 };
 
