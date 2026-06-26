@@ -13,8 +13,7 @@ const app = {
         isSyncing: false,
         duelPlayerA: store.getDuelSelection().playerA,
         duelPlayerB: store.getDuelSelection().playerB,
-        toastQueue: [],
-        activeToasts: 0
+
     },
     
     init() {
@@ -283,8 +282,6 @@ const app = {
         if(syncText) syncText.textContent = "Syncing...";
         if(syncIcon) syncIcon.classList.replace('bg-primary', 'bg-secondary');
 
-        // Capture old player profiles for generating toast feed
-        const oldPlayers = JSON.parse(JSON.stringify(this.state.players));
 
         // Grab usernames
         const usernames = Object.values(this.state.players).map(p => p.originalUsername);
@@ -325,8 +322,7 @@ const app = {
             }
         });
 
-        // Generate toast feed for rating updates, streaks, and MIA alerts
-        this.generateSyncToasts(oldPlayers, this.state.players);
+
 
         if(syncText) syncText.textContent = "Sync: 100%";
         if(syncIcon) syncIcon.classList.replace('bg-secondary', 'bg-primary');
@@ -338,115 +334,7 @@ const app = {
         }
     },
 
-    generateSyncToasts(oldPlayers, newPlayers) {
-        const modes = ['rapid', 'blitz', 'bullet'];
-        const modeLabels = { rapid: 'Rapid', blitz: 'Blitz', bullet: 'Bullet' };
 
-        for (const [key, newPlayer] of Object.entries(newPlayers)) {
-            const oldPlayer = oldPlayers[key];
-            if (!oldPlayer) continue;
-
-            modes.forEach(mode => {
-                const oldBucket = oldPlayer[mode];
-                const newBucket = newPlayer[mode];
-                if (!oldBucket || !newBucket) return;
-
-                const oldRating = oldBucket.rating ?? 0;
-                const newRating = newBucket.rating ?? 0;
-
-                // 1. Rating Changes (only if both had/have rating > 0 to avoid first-time tracking spam)
-                if (newRating !== oldRating && oldRating > 0 && newRating > 0) {
-                    const diff = newRating - oldRating;
-                    const sign = diff > 0 ? `+${diff}` : `${diff}`;
-                    const icon = diff > 0 ? '🏆' : '📉';
-                    const diffText = diff > 0 ? 'gained' : 'lost';
-                    this.showToast(`${icon} ${newPlayer.originalUsername} ${diffText} ${sign} Elo in ${modeLabels[mode]}!`);
-                }
-
-                // 2. MIA Check (Active -> MIA transition)
-                const oldIsMia = this.isMIA(oldBucket.lastActiveDate);
-                const newIsMia = this.isMIA(newBucket.lastActiveDate);
-                if (!oldIsMia && newIsMia) {
-                    this.showToast(`⚠️ ${newPlayer.originalUsername} is now MIA in ${modeLabels[mode]}.`);
-                }
-
-                // 3. Streak Check (Consecutive gains)
-                if (newRating > oldRating) {
-                    let curStreak = 0;
-                    const history = newBucket.history || [];
-                    for (let i = history.length - 1; i > 0; i--) {
-                        const delta = history[i].rating - history[i - 1].rating;
-                        if (delta > 0) {
-                            curStreak++;
-                        } else if (delta < 0) {
-                            break;
-                        }
-                    }
-                    if (curStreak >= 3) {
-                        this.showToast(`🔥 ${newPlayer.originalUsername} is on a ${curStreak}-gain streak in ${modeLabels[mode]}!`);
-                    }
-                }
-            });
-        }
-    },
-
-    showToast(message) {
-        this.state.toastQueue.push(message);
-        this.processToastQueue();
-    },
-
-    processToastQueue() {
-        if (this.state.activeToasts >= 2 || this.state.toastQueue.length === 0) return;
-
-        const message = this.state.toastQueue.shift();
-        this.state.activeToasts++;
-
-        const container = document.getElementById('toast-container');
-        if (!container) {
-            this.state.activeToasts--;
-            return;
-        }
-
-        const toast = document.createElement('div');
-        toast.className = 'toast-notification glass-card rounded-lg px-4 py-3 shadow-lg flex items-center gap-3 transition-all duration-300';
-        
-        let icon = 'info';
-        let iconClass = 'text-primary';
-        if (message.includes('🏆') || message.includes('🔥')) {
-            icon = 'military_tech';
-            iconClass = 'text-primary';
-        } else if (message.includes('📉')) {
-            icon = 'trending_down';
-            iconClass = 'text-error';
-        } else if (message.includes('⚠️')) {
-            icon = 'warning';
-            iconClass = 'text-tertiary';
-        }
-
-        toast.innerHTML = `
-            <span class="material-symbols-outlined ${iconClass} text-lg">${icon}</span>
-            <span class="text-sm font-bold text-on-background">${message.replace(/[🏆📉⚠️🔥]/g, '').trim()}</span>
-        `;
-
-        container.appendChild(toast);
-
-        // Slide in
-        setTimeout(() => toast.classList.add('show'), 10);
-
-        // Slide out and remove
-        setTimeout(() => {
-            toast.classList.replace('show', 'hide');
-            setTimeout(() => {
-                toast.remove();
-                this.state.activeToasts--;
-                // Process next toast after a transition delay
-                setTimeout(() => this.processToastQueue(), 300);
-            }, 300);
-        }, 5000);
-
-        // Stagger the processing of the next toast in the queue by 1.5 seconds
-        setTimeout(() => this.processToastQueue(), 1500);
-    },
 
     isMIA(lastActiveUnix) {
         const thresholdSeconds = this.state.settings.miaThresholdDays * 24 * 60 * 60;
